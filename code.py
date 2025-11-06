@@ -6,6 +6,8 @@ import time
 import board
 import displayio
 import framebufferio
+import vectorio
+import random
 import wifi
 import socketpool
 import ssl
@@ -40,6 +42,14 @@ try:
 except:
     STATS_FONT = terminalio.FONT
     print("Using terminalio font for stats")
+
+# Stats font for Board 4 only (compact stats)
+try:
+    SMALLEST_FONT = bitmap_font.load_font("/fonts/4x6.bdf")
+    print("Loaded 4x6.bdf for smallest stats")
+except:
+    SMALLEST_FONT = terminalio.FONT
+    print("Using terminalio font for smallest stats")
 
 # Character limits based on font choice
 # terminalio.FONT: ~8 chars for 64px width
@@ -101,8 +111,8 @@ for i in range(chain_across):
 print(f"Board centers: {board_centers}")  # Debug output
 
 # API settings
-API_URL = "http://kevins-macbook-air.local:8000/api/live"
-BASE_URL = "http://kevins-macbook-air.local:8000"
+API_URL = "http://143.110.202.154:8000/api/live?detailed_conferences=big_sky"
+BASE_URL = "http://http://143.110.202.154:8000/"
 UPDATE_INTERVAL = 30  # seconds between API calls
 DISPLAY_TIME = 8  # seconds to show each game
 
@@ -282,29 +292,38 @@ def load_league_logo(sport_short):
         }
         
         logo_filename = league_logo_map.get(sport_short)
-        print(f"DEBUG - League logo loading: sport='{sport_short}' -> file='{logo_filename}'")
         
         if not logo_filename:
-            print(f"DEBUG - No league logo mapping for sport: {sport_short}")
             return None
             
         logo_path = f"/logos/leagues/{logo_filename}"
-        print(f"DEBUG - Attempting to load league logo: {logo_path}")
         
         # Load the bitmap
         bitmap, palette = adafruit_imageload.load(logo_path, bitmap=displayio.Bitmap, palette=displayio.Palette)
         
-        # Debug: Print bitmap information
-        print(f"DEBUG - League bitmap dimensions: {bitmap.width}x{bitmap.height}")
+        # Create a slightly smaller bitmap (reduce both dimensions by 15%)
+        new_width = int(bitmap.width * 0.85)  # Reduce width by 15%
+        new_height = int(bitmap.height * 0.85)  # Reduce height by 15%
         
-        # Create a TileGrid to display the bitmap
-        tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
+        # Create scaled bitmap
+        scaled_bitmap = displayio.Bitmap(new_width, new_height, len(palette))
         
-        print(f"DEBUG - Successfully loaded league logo: {logo_path}")
+        # Scale down both dimensions of the original bitmap
+        for y in range(new_height):
+            for x in range(new_width):
+                # Sample from the original bitmap with proper scaling
+                original_x = int(x * bitmap.width / new_width)
+                original_y = int(y * bitmap.height / new_height)
+                original_pixel = bitmap[original_x, original_y]
+                scaled_bitmap[x, y] = original_pixel
+        
+        # Create a TileGrid to display the scaled bitmap
+        tile_grid = displayio.TileGrid(scaled_bitmap, pixel_shader=palette)
+        tile_grid = displayio.TileGrid(scaled_bitmap, pixel_shader=palette)
+        
         return tile_grid
         
     except Exception as e:
-        print(f"DEBUG - Could not load league logo for {sport_short}: {e}")
         return None
 
 def load_team_logo(team_abbrev, sport_short):
@@ -321,30 +340,127 @@ def load_team_logo(team_abbrev, sport_short):
         }
         
         sport_dir = sport_dir_map.get(sport_short)
-        print(f"DEBUG - Logo loading: sport='{sport_short}' -> dir='{sport_dir}'")
         
         if not sport_dir:
-            print(f"DEBUG - No directory mapping for sport: {sport_short}")
             return None
             
         logo_path = f"/logos/{sport_dir}/{team_abbrev}.bmp"
-        print(f"DEBUG - Attempting to load logo: {logo_path}")
         
         # Load the bitmap
         bitmap, palette = adafruit_imageload.load(logo_path, bitmap=displayio.Bitmap, palette=displayio.Palette)
         
-        # Debug: Print bitmap information
-        print(f"DEBUG - Bitmap dimensions: {bitmap.width}x{bitmap.height}")
-        print(f"DEBUG - Palette length: {len(palette)}")
+        # Create a slightly smaller bitmap (reduce height by 15%)
+        new_width = bitmap.width
+        new_height = int(bitmap.height * 0.85)  # Reduce height by 15%
         
-        # Create a TileGrid to display the bitmap
-        tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
+        # Create scaled bitmap
+        scaled_bitmap = displayio.Bitmap(new_width, new_height, len(palette))
         
-        print(f"DEBUG - Successfully loaded logo: {logo_path}")
+        # Scale down only the height of the original bitmap
+        for y in range(new_height):
+            for x in range(new_width):
+                # Sample from the original bitmap with height scaling
+                original_y = int(y * bitmap.height / new_height)
+                original_pixel = bitmap[x, original_y]
+                scaled_bitmap[x, y] = original_pixel
+        
+        # Create a TileGrid to display the scaled bitmap
+        tile_grid = displayio.TileGrid(scaled_bitmap, pixel_shader=palette)
+        
         return tile_grid
         
     except Exception as e:
         print(f"DEBUG - Could not load logo for {team_abbrev} at {logo_path}: {e}")
+        return None
+
+def generate_random_team_bitmap(team_abbrev, width=24, height=24):
+    """Generate a random bitmap pattern for teams without logos"""
+    try:
+        # Create a palette with team colors
+        palette = displayio.Palette(8)
+        
+        # Base colors - adjust based on team abbreviation to get some consistency
+        # Use team abbreviation to seed colors so same team gets same pattern
+        team_hash = sum(ord(c) for c in team_abbrev.upper()) if team_abbrev else 42
+        random.seed(team_hash)  # Seed with team name for consistency
+        
+        # Define some color sets
+        color_sets = [
+            [0x000000, 0xFF0000, 0x800000, 0xFFFFFF, 0x400000, 0xFF8080, 0x200000, 0xFFC0C0],  # Red theme
+            [0x000000, 0x0000FF, 0x000080, 0xFFFFFF, 0x000040, 0x8080FF, 0x000020, 0xC0C0FF],  # Blue theme
+            [0x000000, 0x00FF00, 0x008000, 0xFFFFFF, 0x004000, 0x80FF80, 0x002000, 0xC0FFC0],  # Green theme
+            [0x000000, 0xFFFF00, 0x808000, 0xFFFFFF, 0x404000, 0xFFFF80, 0x202000, 0xFFFFC0],  # Yellow theme
+            [0x000000, 0xFF8000, 0x804000, 0xFFFFFF, 0x402000, 0xFFC080, 0x201000, 0xFFE0C0],  # Orange theme
+            [0x000000, 0x8000FF, 0x400080, 0xFFFFFF, 0x200040, 0xC080FF, 0x100020, 0xE0C0FF],  # Purple theme
+        ]
+        
+        # Select color set based on team
+        color_set = color_sets[team_hash % len(color_sets)]
+        for i, color in enumerate(color_set):
+            palette[i] = color
+        
+        # Create bitmap
+        bitmap = displayio.Bitmap(width, height, len(palette))
+        
+        # Generate pattern based on team name
+        pattern_type = team_hash % 4
+        
+        if pattern_type == 0:
+            # Diagonal stripes
+            for y in range(height):
+                for x in range(width):
+                    stripe = (x + y) % 6
+                    if stripe < 2:
+                        bitmap[x, y] = 1  # Primary color
+                    elif stripe < 4:
+                        bitmap[x, y] = 2  # Secondary color
+                    else:
+                        bitmap[x, y] = 0  # Background
+        
+        elif pattern_type == 1:
+            # Checkerboard with center accent
+            for y in range(height):
+                for x in range(width):
+                    # Center circle area
+                    center_x, center_y = width // 2, height // 2
+                    dist_sq = (x - center_x) ** 2 + (y - center_y) ** 2
+                    if dist_sq <= (min(width, height) // 4) ** 2:
+                        bitmap[x, y] = 3  # Center accent
+                    elif (x // 3 + y // 3) % 2:
+                        bitmap[x, y] = 1  # Primary
+                    else:
+                        bitmap[x, y] = 2  # Secondary
+        
+        elif pattern_type == 2:
+            # Concentric rectangles
+            for y in range(height):
+                for x in range(width):
+                    border_dist = min(x, y, width - 1 - x, height - 1 - y)
+                    color_index = border_dist % 4
+                    bitmap[x, y] = color_index
+        
+        else:
+            # Random dots with structure
+            for y in range(height):
+                for x in range(width):
+                    # Create semi-random but structured pattern
+                    noise = (x * 3 + y * 7 + team_hash) % 17
+                    if noise < 4:
+                        bitmap[x, y] = 1
+                    elif noise < 8:
+                        bitmap[x, y] = 2
+                    elif noise < 10:
+                        bitmap[x, y] = 3
+                    else:
+                        bitmap[x, y] = 0
+        
+        # Create TileGrid
+        tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
+        print(f"DEBUG - Generated random bitmap for {team_abbrev}, pattern type {pattern_type}")
+        return tile_grid
+        
+    except Exception as e:
+        print(f"DEBUG - Could not generate random bitmap for {team_abbrev}: {e}")
         return None
 
 def format_game_status(game):
@@ -482,38 +598,28 @@ def update_game_display(game):
     
     league_logo = load_league_logo(sport_short)
     if league_logo:
-        # Position league logo further left on Board 1
-        logo_x = board_centers[0] - 32  # Further left to avoid text overlap
-        logo_y = (display_height // 2) - 16  # Centered vertically
+        # Position league logo further left on Board 1 (adjusted for smaller size and left border)
+        logo_x = board_centers[0] - 31  # Moved right by 1 pixel to clear the left border
+        logo_y = (display_height // 2) - 14  # Adjusted for 15% smaller logo height (~27px instead of 32px)
         league_logo.x = logo_x
         league_logo.y = logo_y
-        
-        print(f"DEBUG - League logo positioned at ({logo_x}, {logo_y}), board_center[0]={board_centers[0]}")
         
         # Remove old league logo if it exists
         if sport_logo_tile and sport_logo_tile in display_group:
             display_group.remove(sport_logo_tile)
-            print("DEBUG - Removed old league logo")
             
         display_group.append(league_logo)
         sport_logo_tile = league_logo
-        print("DEBUG - Added league logo to display")
     else:
         # Remove league logo if sport doesn't have one
         if sport_logo_tile and sport_logo_tile in display_group:
             display_group.remove(sport_logo_tile)
             sport_logo_tile = None
-            print("DEBUG - No league logo available, removed existing logo")
     
     # Update Combined Boards 2+3: Team logos, period/status, and score
     # Get team abbreviations for logo display
     home_abbrev = home_team.get('abbreviation', home[:3].upper())
     away_abbrev = away_team.get('abbreviation', away[:3].upper())
-    
-    # Debug: Print team information
-    print(f"DEBUG - Home team: name='{home}', abbrev='{home_abbrev}'")
-    print(f"DEBUG - Away team: name='{away}', abbrev='{away_abbrev}'")
-    print(f"DEBUG - Sport: {sport_short}")
     
     # Update team abbreviations in center
     team_abbrev_label.text = f"{home_abbrev} vs {away_abbrev}"
@@ -531,43 +637,51 @@ def update_game_display(game):
     if home_logo:
         # Position the logo towards the left side of board 2 (moved closer to center)
         logo_x = board_centers[1] - 30  # Less extreme left positioning
-        logo_y = (display_height // 2) - 16
+        logo_y = (display_height // 2) - 14  # Adjusted for 15% smaller logo height (~27px instead of 32px)
         home_logo.x = logo_x
         home_logo.y = logo_y
-        
-        print(f"DEBUG - Home logo positioned at ({logo_x}, {logo_y}), board_center[1]={board_centers[1]}")
         
         # Remove old home logo if it exists
         if home_team_logo_tile and home_team_logo_tile in display_group:
             display_group.remove(home_team_logo_tile)
-            print("DEBUG - Removed old home logo")
         # Remove text label if it exists
         if home_team_logo_label in display_group:
             display_group.remove(home_team_logo_label)
-            print("DEBUG - Removed home text label")
             
         display_group.append(home_logo)
         home_team_logo_tile = home_logo
-        print("DEBUG - Added home logo to display")
     else:
-        # Fallback to text (positioned towards left edge)
+        # Fallback to generated random bitmap
         # Remove old home logo if it exists
         if home_team_logo_tile and home_team_logo_tile in display_group:
             display_group.remove(home_team_logo_tile)
             home_team_logo_tile = None
-            print("DEBUG - Removed old home logo for text fallback")
+        
+        # Remove text label if it exists
+        if home_team_logo_label in display_group:
+            display_group.remove(home_team_logo_label)
             
-        if home_team_logo_label not in display_group:
-            display_group.append(home_team_logo_label)
-            print("DEBUG - Added home text fallback")
-        home_team_logo_label.text = home_abbrev
+        # Generate and position random bitmap
+        random_logo = generate_random_team_bitmap(home_abbrev)
+        if random_logo:
+            logo_x = board_centers[1] - 30  # Same positioning as real logo
+            logo_y = (display_height // 2) - 12  # Random bitmaps are 24x24
+            random_logo.x = logo_x
+            random_logo.y = logo_y
+            display_group.append(random_logo)
+            home_team_logo_tile = random_logo
+        else:
+            # Ultimate fallback to text if bitmap generation fails
+            if home_team_logo_label not in display_group:
+                display_group.append(home_team_logo_label)
+            home_team_logo_label.text = home_abbrev
     
     # Load away team logo (positioned towards right edge)
     away_logo = load_team_logo(away_abbrev, sport_short)
     if away_logo:
         # Position the logo towards the right side of board 3 (moved closer to center)
         away_logo.x = board_centers[2] - 2  # Less extreme right positioning
-        away_logo.y = (display_height // 2) - 16
+        away_logo.y = (display_height // 2) - 14  # Adjusted for 15% smaller logo height (~27px instead of 32px)
         
         # Remove old away logo if it exists
         if away_team_logo_tile and away_team_logo_tile in display_group:
@@ -579,24 +693,37 @@ def update_game_display(game):
         display_group.append(away_logo)
         away_team_logo_tile = away_logo
     else:
-        # Fallback to text (positioned towards right edge)
+        # Fallback to generated random bitmap
         # Remove old away logo if it exists
         if away_team_logo_tile and away_team_logo_tile in display_group:
             display_group.remove(away_team_logo_tile)
             away_team_logo_tile = None
-            print("DEBUG - Removed old away logo for text fallback")
+        
+        # Remove text label if it exists
+        if away_team_logo_label in display_group:
+            display_group.remove(away_team_logo_label)
             
-        if away_team_logo_label not in display_group:
-            display_group.append(away_team_logo_label)
-            print("DEBUG - Added away text fallback")
-        away_team_logo_label.text = away_abbrev
+        # Generate and position random bitmap
+        random_logo = generate_random_team_bitmap(away_abbrev)
+        if random_logo:
+            logo_x = board_centers[2] - 2  # Same positioning as real logo
+            logo_y = (display_height // 2) - 12  # Random bitmaps are 24x24
+            random_logo.x = logo_x
+            random_logo.y = logo_y
+            display_group.append(random_logo)
+            away_team_logo_tile = random_logo
+        else:
+            # Ultimate fallback to text if bitmap generation fails
+            if away_team_logo_label not in display_group:
+                display_group.append(away_team_logo_label)
+            away_team_logo_label.text = away_abbrev
     
     # Update period/status in top center
     game_period_label.text = status_text
     game_period_label.color = status_color
     
     # Update score in bottom center (X - Y format)
-    game_score_label.text = f"{away_score} - {home_score}"
+    game_score_label.text = f"{home_score} - {away_score}"
     
     # Update Board 4: Prepare performers for cycling
     top_performers = game.get('top_performers', [])
@@ -675,6 +802,57 @@ def setup_display_layout():
     # Calculate the center of the combined boards 2+3 area
     combined_center_x = (board_centers[1] + board_centers[2]) // 2
     
+    # Add top and bottom border lines spanning entire boards 2+3 width
+    border_left = 64   # Start of board 2
+    border_right = 192  # End of board 3
+    border_width = border_right - border_left
+    
+    # Create border using top and bottom lines only
+    border_palette = displayio.Palette(1)
+    border_palette[0] = 0xFFFFFF  # White
+    
+    # Top border (moved up by 2 pixels to the very top)
+    top_border = vectorio.Rectangle(pixel_shader=border_palette, width=border_width, height=1, x=border_left, y=0)
+    main_group.append(top_border)
+    
+    # Bottom border (moved down by 1 pixel closer to bottom)  
+    bottom_border = vectorio.Rectangle(pixel_shader=border_palette, width=border_width, height=1, x=border_left, y=display_height-1)
+    main_group.append(bottom_border)
+    
+    # Add borders for Board 1 (left border + top/bottom)
+    board1_left = 0
+    board1_right = 64
+    board1_width = board1_right - board1_left
+    
+    # Board 1 top border
+    board1_top_border = vectorio.Rectangle(pixel_shader=border_palette, width=board1_width, height=1, x=board1_left, y=0)
+    main_group.append(board1_top_border)
+    
+    # Board 1 bottom border
+    board1_bottom_border = vectorio.Rectangle(pixel_shader=border_palette, width=board1_width, height=1, x=board1_left, y=display_height-1)
+    main_group.append(board1_bottom_border)
+    
+    # Board 1 left border
+    board1_left_border = vectorio.Rectangle(pixel_shader=border_palette, width=1, height=display_height, x=board1_left, y=0)
+    main_group.append(board1_left_border)
+    
+    # Add borders for Board 4 (right border + top/bottom)
+    board4_left = 192
+    board4_right = 256
+    board4_width = board4_right - board4_left
+    
+    # Board 4 top border
+    board4_top_border = vectorio.Rectangle(pixel_shader=border_palette, width=board4_width, height=1, x=board4_left, y=0)
+    main_group.append(board4_top_border)
+    
+    # Board 4 bottom border
+    board4_bottom_border = vectorio.Rectangle(pixel_shader=border_palette, width=board4_width, height=1, x=board4_left, y=display_height-1)
+    main_group.append(board4_bottom_border)
+    
+    # Board 4 right border
+    board4_right_border = vectorio.Rectangle(pixel_shader=border_palette, width=1, height=display_height, x=board4_right-1, y=0)
+    main_group.append(board4_right_border)
+    
     # Left side: Home team (will be logo or text fallback) - positioned towards left side
     home_team_logo_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
     home_team_logo_label.anchor_point = (0.0, 0.5)  # Left aligned
@@ -690,19 +868,19 @@ def setup_display_layout():
     # Center: Team abbreviations (HOME vs AWAY)
     team_abbrev_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
     team_abbrev_label.anchor_point = (0.5, 0.5)
-    team_abbrev_label.anchored_position = (combined_center_x, display_height // 2)
+    team_abbrev_label.anchored_position = (combined_center_x, display_height // 2 + 2)
     main_group.append(team_abbrev_label)
     
     # Small rank indicators positioned above team abbreviations
     global home_rank_label, away_rank_label
-    home_rank_label = label.Label(STATS_FONT, text="", color=TEXT_CYAN, scale=1)
+    home_rank_label = label.Label(SMALLEST_FONT, text="", color=TEXT_CYAN, scale=1)
     home_rank_label.anchor_point = (1.0, 1.0)  # Right-bottom aligned
-    home_rank_label.anchored_position = (combined_center_x - 15, display_height // 2 - 3)  # Left of center, above team names
+    home_rank_label.anchored_position = (combined_center_x - 15, display_height // 2 - 1)  # Left of center, above team names
     main_group.append(home_rank_label)
     
-    away_rank_label = label.Label(STATS_FONT, text="", color=TEXT_CYAN, scale=1)
+    away_rank_label = label.Label(SMALLEST_FONT, text="", color=TEXT_CYAN, scale=1)
     away_rank_label.anchor_point = (0.0, 1.0)  # Left-bottom aligned  
-    away_rank_label.anchored_position = (combined_center_x + 15, display_height // 2 - 3)  # Right of center, above team names
+    away_rank_label.anchored_position = (combined_center_x + 15, display_height // 2 - 1)  # Right of center, above team names
     main_group.append(away_rank_label)
     
     # Top: Period/time remaining or status
@@ -714,7 +892,7 @@ def setup_display_layout():
     # Bottom: Score (X - Y format)
     game_score_label = label.Label(FONT, text="", color=TEXT_YELLOW, scale=1)
     game_score_label.anchor_point = (0.5, 1.0)
-    game_score_label.anchored_position = (combined_center_x, display_height - 2)
+    game_score_label.anchored_position = (combined_center_x, display_height)
     main_group.append(game_score_label)
     
     # BOARD 4: Stats (unchanged)
