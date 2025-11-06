@@ -79,7 +79,7 @@ display_height = matrix_height * tile_down
 matrix = rgbmatrix.RGBMatrix(
     width=display_width, 
     height=display_height, 
-    bit_depth=2,  # Reduced from 3 to 2 for more stability
+    bit_depth=2,  # Restored to 2 for better color depth and logo quality
         rgb_pins=[
         board.MTX_R1,
         board.MTX_G1,
@@ -286,8 +286,7 @@ def load_league_logo(sport_short):
             'NBA': 'NBA.bmp',
             'NFL': 'NFL.bmp', 
             'MLB': 'MLB.bmp',
-            'NHL': 'NHL.bmp',
-            'CBB': 'college.bmp',  # College Basketball uses college logo
+            'MBB': 'college.bmp',  # College Basketball uses college logo
             'CFB': 'college.bmp'   # College Football uses college logo
         }
         
@@ -335,7 +334,7 @@ def load_team_logo(team_abbrev, sport_short):
             'NFL': 'nfl', 
             'MLB': 'mlb',
             'NHL': 'nhl',
-            'CBB': 'college',  # College Basketball
+            'MBB': 'college',  # College Basketball
             'CFB': 'college'   # College Football
         }
         
@@ -373,7 +372,7 @@ def load_team_logo(team_abbrev, sport_short):
         print(f"DEBUG - Could not load logo for {team_abbrev} at {logo_path}: {e}")
         return None
 
-def generate_random_team_bitmap(team_abbrev, width=24, height=24):
+def generate_random_team_bitmap(team_abbrev, width=16, height=16):
     """Generate a random bitmap pattern for teams without logos"""
     try:
         # Create a palette with team colors
@@ -540,7 +539,7 @@ def update_game_display(game):
     elif 'MLB' in sport:
         sport_short = 'MLB'
     elif 'College' in sport and 'Basketball' in sport:
-        sport_short = 'CBB'
+        sport_short = 'MBB'
     elif 'College' in sport and 'Football' in sport:
         sport_short = 'CFB'
     elif 'Soccer' in sport:
@@ -665,7 +664,7 @@ def update_game_display(game):
         random_logo = generate_random_team_bitmap(home_abbrev)
         if random_logo:
             logo_x = board_centers[1] - 30  # Same positioning as real logo
-            logo_y = (display_height // 2) - 12  # Random bitmaps are 24x24
+            logo_y = (display_height // 2) - 8  # Random bitmaps are now 16x16
             random_logo.x = logo_x
             random_logo.y = logo_y
             display_group.append(random_logo)
@@ -707,7 +706,7 @@ def update_game_display(game):
         random_logo = generate_random_team_bitmap(away_abbrev)
         if random_logo:
             logo_x = board_centers[2] - 2  # Same positioning as real logo
-            logo_y = (display_height // 2) - 12  # Random bitmaps are 24x24
+            logo_y = (display_height // 2) - 8  # Random bitmaps are now 16x16
             random_logo.x = logo_x
             random_logo.y = logo_y
             display_group.append(random_logo)
@@ -809,7 +808,7 @@ def setup_display_layout():
     
     # Create border using top and bottom lines only
     border_palette = displayio.Palette(1)
-    border_palette[0] = 0xFFFFFF  # White
+    border_palette[0] = 0x002040  # Even dimmer blue - very easy on eyes, still visible
     
     # Top border (moved up by 2 pixels to the very top)
     top_border = vectorio.Rectangle(pixel_shader=border_palette, width=border_width, height=1, x=border_left, y=0)
