@@ -11,19 +11,17 @@ import random
 import wifi
 import socketpool
 import ssl
-import json
-from adafruit_matrixportal.matrix import Matrix
+#import json
+import os
 from adafruit_bitmap_font import bitmap_font
 from adafruit_display_text import label
-from adafruit_display_text.scrolling_label import ScrollingLabel
 import adafruit_imageload
 import terminalio
 import adafruit_requests
-import neopixel
 import rgbmatrix
 
 # Timezone configuration
-TIMEZONE = "America/Denver"  # Mountain Time - change as needed
+TIMEZONE = os.getenv("TIMEZONE")  # Mountain Time - change as needed
 # Common options: "America/New_York" (Eastern), "America/Chicago" (Central), 
 #                 "America/Denver" (Mountain), "America/Los_Angeles" (Pacific)
 
@@ -67,8 +65,7 @@ TEXT_YELLOW = 0xFFFF00
 TEXT_CYAN = 0x00FFFF
 
 # Matrix setup
-pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness = 0.3, auto_write=True)
-
+# pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness = 0.3, auto_write=True)
 matrix_width = 64
 matrix_height = 32
 chain_across = 4
@@ -111,26 +108,41 @@ for i in range(chain_across):
 print(f"Board centers: {board_centers}")  # Debug output
 
 # API settings
-API_URL = "http://143.110.202.154:8000/api/live?detailed_conferences=big_sky"
-BASE_URL = "http://http://143.110.202.154:8000/"
+API_URL = "http://143.110.202.154/api/live?detailed_conferences=big_sky&page_size=10"
+BASE_URL = "http://143.110.202.154/"
 UPDATE_INTERVAL = 30  # seconds between API calls
 DISPLAY_TIME = 8  # seconds to show each game
 
 # Connect to WiFi
 print("Connecting to WiFi...")
 try:
-    import os
     ssid = os.getenv('CIRCUITPY_WIFI_SSID')
     password = os.getenv('CIRCUITPY_WIFI_PASSWORD')
     
+    if not ssid or not password:
+        raise Exception("WiFi credentials not configured")
+    
+    print(f"Attempting to connect to: {ssid}")
     wifi.radio.connect(ssid, password)
-    print(f"Connected to WiFi!")
+    print(f"Connected to WiFi! IP: {wifi.radio.ipv4_address}")
     wifi_connected = True
     
     pool = socketpool.SocketPool(wifi.radio)
     requests = adafruit_requests.Session(pool, ssl.create_default_context())
 except Exception as e:
-    print(f"WiFi failed: {e}")
+    print(f"WiFi connection failed: {e}")
+    print("Starting setup mode...")
+    
+    try:
+        # Import and run setup server
+        import setup
+        setup.start_config_server()
+        # If we get here, setup completed and device should restart
+        # But just in case, we'll continue with offline mode
+    except Exception as setup_error:
+        print(f"Setup mode failed: {setup_error}")
+        print("Continuing in offline mode...")
+    
     wifi_connected = False
 
 def fetch_sports_data(url=None):
@@ -173,11 +185,26 @@ def fetch_sports_data(url=None):
         return [], None
 
 def format_game_time(game_time_str):
-    """Format game start time for display, converting to Mountain Time"""
+    """Format game start time for display, converting to Mountain Time and including day"""
     try:
         # Parse the game time (assuming ISO format from API in UTC)
         if 'T' in game_time_str:
             date_part, time_part = game_time_str.split('T')
+            
+            # Parse the date part (YYYY-MM-DD)
+            year, month, day = date_part.split('-')
+            year, month, day = int(year), int(month), int(day)
+            
+            # Calculate day of week using Zeller's congruence (simplified)
+            # 0=Saturday, 1=Sunday, 2=Monday, ..., 6=Friday
+            if month < 3:
+                month += 12
+                year -= 1
+            
+            day_of_week_num = (day + ((13 * (month + 1)) // 5) + year + (year // 4) - (year // 100) + (year // 400)) % 7
+            day_names = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"]
+            day_name = day_names[day_of_week_num]
+            
             if ':' in time_part:
                 # Remove timezone info if present (Z or +00:00)
                 time_clean = time_part.replace('Z', '').split('+')[0].split('-')[0]
@@ -187,24 +214,33 @@ def format_game_time(game_time_str):
                 
                 # Convert UTC to Mountain Time (UTC-7 in summer, UTC-6 in winter)
                 # For simplicity, using UTC-7 (Mountain Daylight Time)
-                # You may want to adjust this based on daylight saving rules
                 hour -= 7  # Convert UTC to Mountain Time
                 
                 # Handle day rollover
+                day_offset = 0
                 if hour < 0:
                     hour += 24
+                    day_offset = -1
                 elif hour >= 24:
                     hour -= 24
+                    day_offset = 1
+                
+                # Adjust day name if time conversion caused day change
+                if day_offset != 0:
+                    adjusted_day_num = (day_of_week_num + day_offset) % 7
+                    day_name = day_names[adjusted_day_num]
                 
                 # Convert to 12-hour format
                 if hour == 0:
-                    return f"12:{minute}AM"
+                    time_str = f"12:{minute}AM"
                 elif hour < 12:
-                    return f"{hour}:{minute}AM"
+                    time_str = f"{hour}:{minute}AM"
                 elif hour == 12:
-                    return f"12:{minute}PM"
+                    time_str = f"12:{minute}PM"
                 else:
-                    return f"{hour-12}:{minute}PM"
+                    time_str = f"{hour-12}:{minute}PM"
+                
+                return f"{day_name} {time_str}"
     except Exception as e:
         print(f"Time parsing error: {e}")
         pass
@@ -286,6 +322,7 @@ def load_league_logo(sport_short):
             'NBA': 'NBA.bmp',
             'NFL': 'NFL.bmp', 
             'MLB': 'MLB.bmp',
+            'NHL': 'NHL.bmp',
             'MBB': 'college.bmp',  # College Basketball uses college logo
             'CFB': 'college.bmp'   # College Football uses college logo
         }
@@ -925,10 +962,19 @@ while True:
     main_group = displayio.Group()
 
     # Only fetch new data if we've displayed all current games OR it's been too long
+    # Dynamic timeout only applies when there's no next page available
+    #if next_page_url:
+    #    timeout = UPDATE_INTERVAL * 3  # Use longer timeout when more pages are available
+    #else:
+    timeout = min(len(games) * DISPLAY_TIME + 1, UPDATE_INTERVAL*3)  # Dynamic timeout when no more pages
+    
+    #print(f"DEBUG - Games: {len(games)}, Has next page: {next_page_url is not None}, Timeout: {timeout}s, Time since update: {current_time - last_update:.1f}s")
+    
     need_new_data = (
         len(games) == 0 or  # No games loaded yet
-        (current_game == 0 and current_time - last_change >= DISPLAY_TIME) or  # Cycled through all games
-        (current_time - last_update >= UPDATE_INTERVAL * 3)  # Been too long since last update
+        (current_game + 1 >= len(games) and next_page_url and current_time - last_change >= DISPLAY_TIME) or  # Ready for next page
+        (not next_page_url and current_time - last_update >= timeout)  or # Dynamic timeout only when no next page
+        (current_time - last_update >= UPDATE_INTERVAL * 3)  # fallback max timeout
     )
     
     if need_new_data:
