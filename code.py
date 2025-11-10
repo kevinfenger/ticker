@@ -73,7 +73,7 @@ def check_disk_space():
                 return False
                 
         except OSError as e:
-            print(f"Could not check file sizes: {e} ")
+            print(f"Could not check file sizes: {e}")
             return False
             
     except Exception as e:
