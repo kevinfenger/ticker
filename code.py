@@ -11,7 +11,6 @@ import random
 import wifi
 import socketpool
 import ssl
-#import json
 import os
 from adafruit_bitmap_font import bitmap_font
 from adafruit_display_text import label
@@ -20,12 +19,8 @@ import terminalio
 import adafruit_requests
 import rgbmatrix
 
-# Timezone configuration
-TIMEZONE = os.getenv("TIMEZONE")  # Mountain Time - change as needed
-# Common options: "America/New_York" (Eastern), "America/Chicago" (Central), 
-#                 "America/Denver" (Mountain), "America/Los_Angeles" (Pacific)
 
-# Main font for boards 1-3 (sport, teams, scores)
+TIMEZONE = os.getenv("TIMEZONE") 
 try: 
     FONT = bitmap_font.load_font("/fonts/6x10.bdf")
     print("Loaded 6x10.bdf for main display")
@@ -33,15 +28,13 @@ except:
     FONT = terminalio.FONT
     print("Using terminalio font for main display")
 
-# Stats font for Board 4 only (compact stats)
 try:
-    STATS_FONT = bitmap_font.load_font("/fonts/5x7.bdf")
+    SMALLER_FONT = bitmap_font.load_font("/fonts/5x7.bdf")
     print("Loaded 5x7.bdf for stats")
 except:
-    STATS_FONT = terminalio.FONT
+    SMALLER_FONT = terminalio.FONT
     print("Using terminalio font for stats")
 
-# Stats font for Board 4 only (compact stats)
 try:
     SMALLEST_FONT = bitmap_font.load_font("/fonts/4x6.bdf")
     print("Loaded 4x6.bdf for smallest stats")
@@ -107,11 +100,177 @@ for i in range(chain_across):
 
 print(f"Board centers: {board_centers}")  # Debug output
 
-# API settings
-API_URL = "http://143.110.202.154/api/live?detailed_conferences=big_sky&page_size=10"
+# API settings - Build URL dynamically from settings
+def build_api_url():
+    """Build API URL from settings.toml configuration"""
+    # Get base API URL from settings or use default
+    base_api = os.getenv('API_BASE_URL', 'http://143.110.202.154:8000/api/live')
+    
+    # Get sport and conference settings
+    sport_type = os.getenv('SPORTS_TYPE', '')
+    detailed_conferences = os.getenv('DETAILED_CONFERENCES', '')
+    
+    # Merge sport_type and detailed_conferences for API call
+    # API only accepts detailed_conferences parameter currently
+    merged_conferences = []
+    if sport_type:
+        merged_conferences.append(sport_type)
+    if detailed_conferences:
+        merged_conferences.append(detailed_conferences)
+    
+    # If we have any settings, build detailed URL
+    if merged_conferences:
+        combined_conferences = ','.join(merged_conferences)
+        api_url = f"{base_api}?detailed_conferences={combined_conferences}&page_size=10"
+        print(f"Using detailed API URL: {api_url}")
+        return api_url
+    else:
+        # Use simple live endpoint
+        if '?' not in base_api:
+            api_url = f"{base_api}?page_size=10"
+        else:
+            api_url = f"{base_api}&page_size=10"
+        print(f"Using basic API URL: {api_url}")
+        return api_url
+
+API_URL = build_api_url()
 BASE_URL = "http://143.110.202.154/"
 UPDATE_INTERVAL = 30  # seconds between API calls
 DISPLAY_TIME = 8  # seconds to show each game
+
+# Initialize config server variable
+config_server = None
+
+def show_config_url_on_display(url):
+    """Temporarily show configuration URL on the LED display with logo"""
+    print(f"Showing config URL on display: {url}")
+    
+    # Create a temporary group for the URL display
+    url_group = displayio.Group()
+    
+    # Board 1 - Company branding with logo and border
+    # Left border line
+    border_line = vectorio.Rectangle(pixel_shader=displayio.Palette(1), width=2, height=32, x=2, y=0)
+    border_line.pixel_shader[0] = TEXT_CYAN  # Cyan border
+    url_group.append(border_line)
+    
+    try:
+        # Load the wild deer logo first (will be in background)
+        logo_bitmap, logo_palette = adafruit_imageload.load("/logos/display/wild_deer.bmp")
+        
+        # Create first logo - positioned at far left
+        logo_tilegrid1 = displayio.TileGrid(logo_bitmap, pixel_shader=logo_palette)
+        logo_width = logo_bitmap.width
+        logo_height = logo_bitmap.height
+        logo_tilegrid1.x = 4   # All the way to the left (after border)
+        logo_tilegrid1.y = 1   # Top position
+        
+        # Create second logo - positioned next to the first one
+        logo_tilegrid2 = displayio.TileGrid(logo_bitmap, pixel_shader=logo_palette)
+        logo_tilegrid2.x = 4 + logo_width + 1  # Next to first logo with 1-pixel gap (moved left 1 pixel)
+        logo_tilegrid2.y = 1   # Same height
+        
+        # Add both logos (background layer)
+        url_group.append(logo_tilegrid1)
+        url_group.append(logo_tilegrid2)
+        
+        # Company name added after logo (foreground layer - will appear on top)
+        company_name = label.Label(SMALLER_FONT, text="WildDeer SD", color=TEXT_WHITE, scale=1)
+        company_name.anchor_point = (0.0, 0.0)
+        company_name.anchored_position = (6, 2)  # Top position - will display over logo
+        url_group.append(company_name)
+        
+    except Exception as e:
+        # Fallback - just show company name on board 1 (centered)
+        company_name = label.Label(SMALLER_FONT, text="WildDeer SD", color=TEXT_WHITE, scale=1)
+        company_name.anchor_point = (0.0, 0.0)
+        company_name.anchored_position = (6, 12)  # Vertically centered
+        url_group.append(company_name)
+    
+    # Boards 2-4 - Configuration information
+    config_start_x = 68  # Start of board 2
+    
+    # Configuration title
+    config_title = label.Label(SMALLER_FONT, text="Configuration Portal", color=TEXT_GREEN, scale=1)
+    config_title.anchor_point = (0.0, 0.0)
+    config_title.anchored_position = (config_start_x, 4)  # Back to original position (more to the left)
+    url_group.append(config_title)
+    
+    # Instructions
+    instruction_label = label.Label(SMALLER_FONT, text="See or make changes here:", color=TEXT_WHITE, scale=1)
+    instruction_label.anchor_point = (0.0, 0.0)
+    instruction_label.anchored_position = (config_start_x + 4, 14)  # Add spacing to the right
+    url_group.append(instruction_label)
+    
+    # URL display
+    url_label = label.Label(SMALLER_FONT, text=f"http://{url}", color=TEXT_GREEN, scale=1)
+    url_label.anchor_point = (0.0, 0.0)
+    url_label.anchored_position = (config_start_x, 24)
+    url_group.append(url_label)
+    
+    # Show the URL display
+    display.root_group = url_group
+    
+    # Wait 10 seconds
+    time.sleep(10)
+
+def show_setup_mode_on_display(ap_ip):
+    """Show setup mode information on the LED display"""
+    print(f"Showing setup mode info on display: {ap_ip}")
+    
+    # Create a temporary group for the setup display
+    setup_group = displayio.Group()
+    
+    # Name label
+    name_label = label.Label(SMALLER_FONT, text="Name:", color=TEXT_YELLOW, scale=1)
+    name_label.anchor_point = (0.0, 0.0)
+    name_label.anchored_position = (120, 2)
+    setup_group.append(name_label)
+    
+    # WiFi network name
+    network_label = label.Label(SMALLER_FONT, text="SportsDisplay-Setup", color=TEXT_WHITE, scale=1)
+    network_label.anchor_point = (0.0, 0.0)
+    network_label.anchored_position = (150, 2)  # Offset to the right of "Name:" label
+    setup_group.append(network_label)
+    
+    # PW label
+    pw_label = label.Label(SMALLER_FONT, text="PW:", color=TEXT_YELLOW, scale=1)
+    pw_label.anchor_point = (0.0, 0.0)
+    pw_label.anchored_position = (120, 9)  # Close under the network name
+    setup_group.append(pw_label)
+    
+    # Password 
+    password_label = label.Label(SMALLER_FONT, text="sports123", color=TEXT_WHITE, scale=1)
+    password_label.anchor_point = (0.0, 0.0)
+    password_label.anchored_position = (150, 9)  # Aligned with network name, close under it
+    setup_group.append(password_label)
+    
+    # Board 1 - Instructions (left side)
+    # Row 2: "Connect To Wifi:" instruction - vertically centered between network name and password
+    connect_instruction = label.Label(SMALLER_FONT, text="Connect To Wifi:", color=TEXT_CYAN, scale=1)
+    connect_instruction.anchor_point = (0.0, 0.0)
+    connect_instruction.anchored_position = (2, 5)  # Moved up 3 pixels for better centering
+    setup_group.append(connect_instruction)
+    
+    # Row 3: "Then Visit to Config:" instruction  
+    config_instruction = label.Label(SMALLER_FONT, text="Then Visit to Config:", color=TEXT_CYAN, scale=1)
+    config_instruction.anchor_point = (0.0, 0.0)
+    config_instruction.anchored_position = (2, 22)
+    setup_group.append(config_instruction)
+    
+    # Row 3: IP address aligned with "Then Visit to Config:"
+    ip_label = label.Label(SMALLER_FONT, text=f"http://{ap_ip}:5000", color=TEXT_GREEN, scale=1)
+    ip_label.anchor_point = (0.0, 0.0)
+    ip_label.anchored_position = (120, 22)  # Start after board 1
+    setup_group.append(ip_label)
+    
+    # Show the setup display
+    display.root_group = setup_group
+    
+    # Wait 15 seconds to show the info (a bit longer since there's more info)
+    #time.sleep(15)
+    
+    print("Setup mode display timeout, setup server running")
 
 # Connect to WiFi
 print("Connecting to WiFi...")
@@ -129,6 +288,23 @@ try:
     
     pool = socketpool.SocketPool(wifi.radio)
     requests = adafruit_requests.Session(pool, ssl.create_default_context())
+    
+    # Start configuration server alongside main display
+    try:
+        print("Starting configuration server...")
+        import setup
+        config_server = setup.start_config_server(setup_mode=False, pool=pool)
+        print(f"start_config_server returned: {config_server}")
+        print(f"config_server type: {type(config_server)}")
+        if config_server:
+            print(f"Configuration available at: http://{wifi.radio.ipv4_address}:5000")
+            # Show config URL on LED display for 10 seconds
+            show_config_url_on_display(f"{wifi.radio.ipv4_address}:5000")
+        else:
+            print("Could not start configuration server - returned None")
+    except Exception as config_error:
+        print(f"Could not start config server: {config_error}")
+        config_server = None
 except Exception as e:
     print(f"WiFi connection failed: {e}")
     print("Starting setup mode...")
@@ -136,7 +312,35 @@ except Exception as e:
     try:
         # Import and run setup server
         import setup
-        setup.start_config_server()
+        
+        # Create access point first to get IP address
+        print("Creating WiFi Access Point...")
+        wifi.radio.start_ap("SportsDisplay-Setup", "sports123")
+        
+        # Wait for AP IP address to be assigned (retry with delay)
+        ap_ip = None
+        for retry in range(5):  # Try up to 5 times
+            ap_ip_raw = wifi.radio.ipv4_address_ap
+            if ap_ip_raw is not None:
+                ap_ip = str(ap_ip_raw)
+                break
+            print(f"Waiting for AP IP assignment... (attempt {retry + 1}/5)")
+            time.sleep(1)
+        
+        if ap_ip is None:
+            print("ERROR: Could not get AP IP address after retries")
+            ap_ip = "UNKNOWN"
+        
+        print(f"Access Point created: SportsDisplay-Setup")
+        print(f"Password: sports123")
+        print(f"Connect and visit: http://{ap_ip}:5000")
+        
+        # Show setup mode info on display with IP address
+        show_setup_mode_on_display(ap_ip)
+        
+        # Start the setup server (this will be blocking, but AP is already created)
+        setup.start_config_server(setup_mode=True)
+        
         # If we get here, setup completed and device should restart
         # But just in case, we'll continue with offline mode
     except Exception as setup_error:
@@ -149,10 +353,10 @@ def fetch_sports_data(url=None):
     """Get sports data from API"""
     if not wifi_connected:
         return [{
-            "away_team": {"abbreviation": "LAL", "score": "98"},
-            "home_team": {"abbreviation": "GSW", "score": "102"},
+            "away_team": {"abbreviation": "NO", "score": "DATA"},
+            "home_team": {"abbreviation": "NO", "score": "DATA"},
             "status": "Final",
-            "sport_display": "Basketball NBA"
+            "sport_display": "No Data"
         }], None
     
     try:
@@ -267,7 +471,7 @@ def format_pro_team_name(team_name, sport):
             'San Francisco': 'SF',
             'San Antonio': 'SA',
             'Oklahoma City': 'OKC',
-            'Portland Trail': 'POR',  # Trail Blazers
+            'Portland Trail': 'POR', 
             'Tampa Bay': 'TB',
             'Green Bay': 'GB',
             'Kansas City': 'KC',
@@ -310,7 +514,7 @@ def get_team_font(team_text):
     FONT_SWITCH_THRESHOLD = 8
     
     if len(team_text) > FONT_SWITCH_THRESHOLD:
-        return STATS_FONT  # 5x7.bdf - smaller, more characters fit
+        return SMALLER_FONT  # 5x7.bdf - smaller, more characters fit
     else:
         return FONT  # 6x10.bdf - larger, better readability
 
@@ -406,7 +610,6 @@ def load_team_logo(team_abbrev, sport_short):
         return tile_grid
         
     except Exception as e:
-        print(f"DEBUG - Could not load logo for {team_abbrev} at {logo_path}: {e}")
         return None
 
 def generate_random_team_bitmap(team_abbrev, width=16, height=16):
@@ -492,7 +695,6 @@ def generate_random_team_bitmap(team_abbrev, width=16, height=16):
         
         # Create TileGrid
         tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
-        print(f"DEBUG - Generated random bitmap for {team_abbrev}, pattern type {pattern_type}")
         return tile_grid
         
     except Exception as e:
@@ -611,9 +813,9 @@ def update_game_display(game):
     home_font = get_team_font(home)
     
     # Adjust character limits based on font choice
-    # 5x7 font (STATS_FONT) allows more characters than 6x10 font (FONT)
-    away_char_limit = 12 if away_font == STATS_FONT else MAX_CHARS_WITH_RANK if away_rank is not None else MAX_CHARS_NO_RANK
-    home_char_limit = 12 if home_font == STATS_FONT else MAX_CHARS_WITH_RANK if home_rank is not None else MAX_CHARS_NO_RANK
+    # 5x7 font (SMALLER_FONT) allows more characters than 6x10 font (FONT)
+    away_char_limit = 12 if away_font == SMALLER_FONT else MAX_CHARS_WITH_RANK if away_rank is not None else MAX_CHARS_NO_RANK
+    home_char_limit = 12 if home_font == SMALLER_FONT else MAX_CHARS_WITH_RANK if home_rank is not None else MAX_CHARS_NO_RANK
     
     if away_rank is not None:
         away_display = f"#{away_rank} {away}"[:away_char_limit]
@@ -829,7 +1031,7 @@ def setup_display_layout():
     # BOARD 1: League logo (left) + Sport name (right, bold)
     # League logo will be added dynamically based on sport
     # Sport text using smaller font with moderate scale for better size control
-    sport_label = label.Label(STATS_FONT, text="", color=TEXT_CYAN, scale=2)
+    sport_label = label.Label(SMALLER_FONT, text="", color=TEXT_CYAN, scale=2)
     sport_label.anchor_point = (1.0, 0.5)  # Right aligned
     sport_label.anchored_position = (board_centers[0] + 32, display_height // 2)  # Moved even further right
     main_group.append(sport_label)
@@ -890,19 +1092,19 @@ def setup_display_layout():
     main_group.append(board4_right_border)
     
     # Left side: Home team (will be logo or text fallback) - positioned towards left side
-    home_team_logo_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
+    home_team_logo_label = label.Label(SMALLER_FONT, text="", color=TEXT_WHITE, scale=1)
     home_team_logo_label.anchor_point = (0.0, 0.5)  # Left aligned
     home_team_logo_label.anchored_position = (board_centers[1] - 20, display_height // 2)
     # Note: home_team_logo_label will be added to main_group only if no logo is available
     
     # Right side: Away team (will be logo or text fallback) - positioned towards right side
-    away_team_logo_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
+    away_team_logo_label = label.Label(SMALLER_FONT, text="", color=TEXT_WHITE, scale=1)
     away_team_logo_label.anchor_point = (1.0, 0.5)  # Right aligned
     away_team_logo_label.anchored_position = (board_centers[2] + 20, display_height // 2)
     # Note: away_team_logo_label will be added to main_group only if no logo is available
     
     # Center: Team abbreviations (HOME vs AWAY)
-    team_abbrev_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
+    team_abbrev_label = label.Label(SMALLER_FONT, text="", color=TEXT_WHITE, scale=1)
     team_abbrev_label.anchor_point = (0.5, 0.5)
     team_abbrev_label.anchored_position = (combined_center_x, display_height // 2 + 2)
     main_group.append(team_abbrev_label)
@@ -920,7 +1122,7 @@ def setup_display_layout():
     main_group.append(away_rank_label)
     
     # Top: Period/time remaining or status
-    game_period_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
+    game_period_label = label.Label(SMALLER_FONT, text="", color=TEXT_WHITE, scale=1)
     game_period_label.anchor_point = (0.5, 0.0)
     game_period_label.anchored_position = (combined_center_x, 2)
     main_group.append(game_period_label)
@@ -932,17 +1134,17 @@ def setup_display_layout():
     main_group.append(game_score_label)
     
     # BOARD 4: Stats (unchanged)
-    board4_stats_title = label.Label(STATS_FONT, text="STATS", color=TEXT_CYAN, scale=1)
+    board4_stats_title = label.Label(SMALLER_FONT, text="STATS", color=TEXT_CYAN, scale=1)
     board4_stats_title.anchor_point = (0.5, 0.0)
     board4_stats_title.anchored_position = (board_centers[3], 2)
     main_group.append(board4_stats_title)
     
-    board4_player_label = label.Label(STATS_FONT, text="", color=TEXT_WHITE, scale=1)
+    board4_player_label = label.Label(SMALLER_FONT, text="", color=TEXT_WHITE, scale=1)
     board4_player_label.anchor_point = (0.5, 0.5)
     board4_player_label.anchored_position = (board_centers[3], 16)
     main_group.append(board4_player_label)
     
-    board4_stat_label = label.Label(STATS_FONT, text="", color=TEXT_GREEN, scale=1)
+    board4_stat_label = label.Label(SMALLER_FONT, text="", color=TEXT_GREEN, scale=1)
     board4_stat_label.anchor_point = (0.5, 1.0)
     board4_stat_label.anchored_position = (board_centers[3], 30)
     main_group.append(board4_stat_label)
@@ -959,7 +1161,19 @@ setup_display_layout()
 # Main loop
 while True:
     current_time = time.monotonic()
-    main_group = displayio.Group()
+    
+    # Poll configuration server if available
+    if wifi_connected and config_server:
+        try:
+            result = config_server.poll()
+            if result and result != "no_request":  # Only log actual requests
+                print(f"Config server handled request: {result}")
+        except Exception as poll_error:
+            print(f"Config server poll error: {poll_error}")
+    elif wifi_connected:
+        # Debug: why isn't config_server available?
+        if current_time - last_update < 10:  # Only print for first 10 seconds
+            print(f"Config server not available: config_server={config_server}")
 
     # Only fetch new data if we've displayed all current games OR it's been too long
     # Dynamic timeout only applies when there's no next page available
