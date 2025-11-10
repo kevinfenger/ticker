@@ -19,34 +19,140 @@ import terminalio
 import adafruit_requests
 import rgbmatrix
 
+# Version and Update Configuration
+VERSION = "1.0.0"  # Current version - update this with each release
+GITHUB_REPO = "kevinfenger/ticker"  # Your actual repo - create a release to test updates
+GITHUB_API_BASE = "https://api.github.com/repos"
+
+def check_disk_space():
+    """Check available disk space for update operations"""
+    try:
+        # Get filesystem stats
+        statvfs = os.statvfs("/")
+        
+        # Calculate sizes in KB for easier reading
+        block_size = statvfs[0]  # Fragment size
+        total_blocks = statvfs[2]  # Total blocks
+        free_blocks = statvfs[3]   # Available blocks
+        
+        total_kb = (total_blocks * block_size) // 1024
+        free_kb = (free_blocks * block_size) // 1024
+        used_kb = total_kb - free_kb
+        
+        print(f"Disk Space Analysis:")
+        print(f"  Total: {total_kb} KB ({total_kb/1024:.1f} MB)")
+        print(f"  Used:  {used_kb} KB ({used_kb/1024:.1f} MB)")
+        print(f"  Free:  {free_kb} KB ({free_kb/1024:.1f} MB)")
+        print(f"  Usage: {(used_kb/total_kb)*100:.1f}%")
+        
+        # Check current file sizes for backup planning
+        try:
+            code_size = os.stat("/code.py")[6]
+            setup_size = os.stat("/setup.py")[6]
+            print(f"Current Files:")
+            print(f"  code.py:  {code_size} bytes ({code_size/1024:.1f} KB)")
+            print(f"  setup.py: {setup_size} bytes ({setup_size/1024:.1f} KB)")
+            
+            # Calculate space needed for safe updates
+            backup_space_needed = code_size + setup_size  # bytes
+            temp_space_needed = code_size + setup_size    # bytes for new versions
+            total_update_space = backup_space_needed + temp_space_needed
+            
+            print(f"Update Space Requirements:")
+            print(f"  Backup space needed: {backup_space_needed} bytes ({backup_space_needed/1024:.1f} KB)")
+            print(f"  Temp download space: {temp_space_needed} bytes ({temp_space_needed/1024:.1f} KB)")
+            print(f"  Total for safe updates: {total_update_space} bytes ({total_update_space/1024:.1f} KB)")
+            
+            # Check if we have enough space
+            free_bytes = free_kb * 1024
+            if free_bytes > total_update_space * 1.5:  # 50% safety margin
+                print(f"✓ Sufficient space for safe updates (with 50% margin)")
+                return True
+            else:
+                print(f"⚠ WARNING: Limited space for updates. Consider cleaning up files.")
+                return False
+                
+        except OSError as e:
+            print(f"Could not check file sizes: {e} ")
+            return False
+            
+    except Exception as e:
+        print(f"Disk space check failed: {e}")
+        return False
+
+def check_github_releases():
+    """Check GitHub for available releases"""
+    try:
+        #print(f"Checking GitHub releases for {GITHUB_REPO}...")
+        
+        # GitHub API endpoint for latest release
+        url = f"{GITHUB_API_BASE}/{GITHUB_REPO}/releases/latest"
+        
+        # Make request with timeout
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            release_data = response.json()
+            
+            latest_version = release_data.get('tag_name', 'unknown')
+            release_name = release_data.get('name', 'Unnamed Release')
+            release_notes = release_data.get('body', 'No release notes available')
+            published_at = release_data.get('published_at', 'Unknown date')
+            is_prerelease = release_data.get('prerelease', False)
+            
+            #print(f"Latest release found: {latest_version}")
+            #print(f"Current version: {VERSION}")
+            
+            # Basic version comparison (assumes semantic versioning)
+            if latest_version != VERSION and not is_prerelease:
+                #print(f"✓ Update available: {latest_version}")
+                return {
+                    'available': True,
+                    'version': latest_version,
+                    'name': release_name,
+                    'notes': release_notes,
+                    'published': published_at,
+                    'download_url': None  # We'll add file download URLs next
+                }
+            else:
+                #print("✓ Running latest version")
+                return {
+                    'available': False,
+                    'version': latest_version,
+                    'current': VERSION
+                }
+                
+        elif response.status_code == 404:
+            #print("Repository found but no releases published yet")
+            return {'error': 'No releases found - create your first release on GitHub'}
+        else:
+            #print(f"GitHub API error: {response.status_code}")
+            return {'error': f'API returned {response.status_code}'}
+            
+    except Exception as e:
+        print(f"Error checking for updates: {e}")
+        return {'error': str(e)}
 
 TIMEZONE = os.getenv("TIMEZONE") 
 try: 
     FONT = bitmap_font.load_font("/fonts/6x10.bdf")
-    print("Loaded 6x10.bdf for main display")
 except:
     FONT = terminalio.FONT
-    print("Using terminalio font for main display")
 
 try:
     SMALLER_FONT = bitmap_font.load_font("/fonts/5x7.bdf")
-    print("Loaded 5x7.bdf for stats")
 except:
     SMALLER_FONT = terminalio.FONT
-    print("Using terminalio font for stats")
 
 try:
     SMALLEST_FONT = bitmap_font.load_font("/fonts/4x6.bdf")
-    print("Loaded 4x6.bdf for smallest stats")
 except:
     SMALLEST_FONT = terminalio.FONT
-    print("Using terminalio font for smallest stats")
 
 # Character limits based on font choice
 # terminalio.FONT: ~8 chars for 64px width
 # font5x8.bin: ~12-13 chars for 64px width (much better!)
-MAX_CHARS_WITH_RANK = 10  # Allow for "#15 Duke" format - same as unranked
-MAX_CHARS_NO_RANK = 10   # More generous for unranked teams
+
 
 displayio.release_displays()
 
@@ -58,7 +164,6 @@ TEXT_YELLOW = 0xFFFF00
 TEXT_CYAN = 0x00FFFF
 
 # Matrix setup
-# pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness = 0.3, auto_write=True)
 matrix_width = 64
 matrix_height = 32
 chain_across = 4
@@ -98,7 +203,7 @@ for i in range(chain_across):
     center_x = (i * matrix_width) + (matrix_width // 2)
     board_centers.append(center_x)
 
-print(f"Board centers: {board_centers}")  # Debug output
+#print(f"Board centers: {board_centers}")  # Debug output
 
 # API settings - Build URL dynamically from settings
 def build_api_url():
@@ -106,22 +211,12 @@ def build_api_url():
     # Get base API URL from settings or use default
     base_api = os.getenv('API_BASE_URL', 'http://143.110.202.154:8000/api/live')
     
-    # Get sport and conference settings
-    sport_type = os.getenv('SPORTS_TYPE', '')
-    detailed_conferences = os.getenv('DETAILED_CONFERENCES', '')
+    # Get collections settings
+    collections = os.getenv('COLLECTIONS', '')
     
-    # Merge sport_type and detailed_conferences for API call
-    # API only accepts detailed_conferences parameter currently
-    merged_conferences = []
-    if sport_type:
-        merged_conferences.append(sport_type)
-    if detailed_conferences:
-        merged_conferences.append(detailed_conferences)
-    
-    # If we have any settings, build detailed URL
-    if merged_conferences:
-        combined_conferences = ','.join(merged_conferences)
-        api_url = f"{base_api}?detailed_conferences={combined_conferences}&page_size=10"
+    # If we have collections configured, build detailed URL
+    if collections:
+        api_url = f"{base_api}?collections={collections}&page_size=10"
         print(f"Using detailed API URL: {api_url}")
         return api_url
     else:
@@ -141,9 +236,11 @@ DISPLAY_TIME = 8  # seconds to show each game
 # Initialize config server variable
 config_server = None
 
-def show_config_url_on_display(url):
-    """Temporarily show configuration URL on the LED display with logo"""
-    print(f"Showing config URL on display: {url}")
+def show_config_url_on_display(url, update_info=None):
+    """Temporarily show configuration URL and update info on the LED display with logo"""
+    #print(f"Showing config URL on display: {url}")
+    #if update_info and update_info.get('available'):
+    #   print(f"Also showing update notification: v{update_info.get('version')}")
     
     # Create a temporary group for the URL display
     url_group = displayio.Group()
@@ -207,6 +304,27 @@ def show_config_url_on_display(url):
     url_label.anchor_point = (0.0, 0.0)
     url_label.anchored_position = (config_start_x, 24)
     url_group.append(url_label)
+    
+    # Update notification (if available) - use board 4 only with compact text
+    if update_info and update_info.get('available'):
+        board4_start_x = 203  # 3 more pixels right (was 200, now 203)
+        
+        # Line 1: "Update Avail" - compact notification
+        update_title = label.Label(SMALLEST_FONT, text="Update Avail", color=TEXT_YELLOW, scale=1)
+        update_title.anchor_point = (0.0, 0.0)
+        update_title.anchored_position = (board4_start_x, 2)  # 4 pixels up (was 6, now 2)
+        url_group.append(update_title)
+        
+        # Line 2: "@configSite" - instruction to visit config (@ symbol bigger)
+        at_symbol = label.Label(SMALLER_FONT, text="@", color=TEXT_CYAN, scale=1)
+        at_symbol.anchor_point = (0.0, 0.0)
+        at_symbol.anchored_position = (board4_start_x, 10)  # 4 pixels up (was 14, now 10)
+        url_group.append(at_symbol)
+        
+        config_text = label.Label(SMALLEST_FONT, text="configSite", color=TEXT_CYAN, scale=1)
+        config_text.anchor_point = (0.0, 0.0)
+        config_text.anchored_position = (board4_start_x + 6, 11)  # Offset to align with @ symbol baseline
+        url_group.append(config_text)
     
     # Show the URL display
     display.root_group = url_group
@@ -272,6 +390,10 @@ def show_setup_mode_on_display(ap_ip):
     
     print("Setup mode display timeout, setup server running")
 
+# Check disk space before starting main operations
+#print("Checking disk space...")
+#sufficient_space = check_disk_space()
+
 # Connect to WiFi
 print("Connecting to WiFi...")
 try:
@@ -281,40 +403,49 @@ try:
     if not ssid or not password:
         raise Exception("WiFi credentials not configured")
     
-    print(f"Attempting to connect to: {ssid}")
+   # print(f"Attempting to connect to: {ssid}")
     wifi.radio.connect(ssid, password)
-    print(f"Connected to WiFi! IP: {wifi.radio.ipv4_address}")
+    #print(f"Connected to WiFi! IP: {wifi.radio.ipv4_address}")
     wifi_connected = True
     
     pool = socketpool.SocketPool(wifi.radio)
     requests = adafruit_requests.Session(pool, ssl.create_default_context())
     
+    # Check for available updates
+   # print(f"WildDeer Sports Display {VERSION}")
+    update_info = check_github_releases()
+    #if update_info.get('available'):
+    #    print(f"🔄 Update available: {update_info['version']}")
+    #    print("Visit the configuration page to install updates")
+   # elif update_info.get('error'):
+    #    print(f"Could not check for updates: {update_info['error']}")
+    
     # Start configuration server alongside main display
     try:
-        print("Starting configuration server...")
+        #print("Starting configuration server...")
         import setup
         config_server = setup.start_config_server(setup_mode=False, pool=pool)
-        print(f"start_config_server returned: {config_server}")
-        print(f"config_server type: {type(config_server)}")
+        #print(f"start_config_server returned: {config_server}")
+        #print(f"config_server type: {type(config_server)}")
         if config_server:
-            print(f"Configuration available at: http://{wifi.radio.ipv4_address}:5000")
-            # Show config URL on LED display for 10 seconds
-            show_config_url_on_display(f"{wifi.radio.ipv4_address}:5000")
+            #print(f"Configuration available at: http://{wifi.radio.ipv4_address}:5000")
+            # Show config URL on LED display for 10 seconds, including update info if available
+            show_config_url_on_display(f"{wifi.radio.ipv4_address}:5000", update_info)
         else:
             print("Could not start configuration server - returned None")
     except Exception as config_error:
         print(f"Could not start config server: {config_error}")
         config_server = None
 except Exception as e:
-    print(f"WiFi connection failed: {e}")
-    print("Starting setup mode...")
+    #print(f"WiFi connection failed: {e}")
+    #print("Starting setup mode...")
     
     try:
         # Import and run setup server
         import setup
         
         # Create access point first to get IP address
-        print("Creating WiFi Access Point...")
+        #print("Creating WiFi Access Point...")
         wifi.radio.start_ap("SportsDisplay-Setup", "sports123")
         
         # Wait for AP IP address to be assigned (retry with delay)
@@ -324,16 +455,16 @@ except Exception as e:
             if ap_ip_raw is not None:
                 ap_ip = str(ap_ip_raw)
                 break
-            print(f"Waiting for AP IP assignment... (attempt {retry + 1}/5)")
+            #print(f"Waiting for AP IP assignment... (attempt {retry + 1}/5)")
             time.sleep(1)
         
         if ap_ip is None:
-            print("ERROR: Could not get AP IP address after retries")
+            #print("ERROR: Could not get AP IP address after retries")
             ap_ip = "UNKNOWN"
         
-        print(f"Access Point created: SportsDisplay-Setup")
-        print(f"Password: sports123")
-        print(f"Connect and visit: http://{ap_ip}:5000")
+        #print(f"Access Point created: SportsDisplay-Setup")
+        #print(f"Password: sports123")
+        #print(f"Connect and visit: http://{ap_ip}:5000")
         
         # Show setup mode info on display with IP address
         show_setup_mode_on_display(ap_ip)
@@ -763,6 +894,9 @@ def format_player_name(full_name):
 def update_game_display(game):
     """Update existing display labels with new game data - no recreation needed"""
     global current_game_performers
+
+    max_chars_with_rank= 10  # Allow for "#15 Duke" format - same as unranked
+    max_chars_no_rank = 10   # More generous for unranked teams
     
     if not game:
         return
@@ -814,8 +948,8 @@ def update_game_display(game):
     
     # Adjust character limits based on font choice
     # 5x7 font (SMALLER_FONT) allows more characters than 6x10 font (FONT)
-    away_char_limit = 12 if away_font == SMALLER_FONT else MAX_CHARS_WITH_RANK if away_rank is not None else MAX_CHARS_NO_RANK
-    home_char_limit = 12 if home_font == SMALLER_FONT else MAX_CHARS_WITH_RANK if home_rank is not None else MAX_CHARS_NO_RANK
+    away_char_limit = 12 if away_font == SMALLER_FONT else max_chars_with_rank if away_rank is not None else max_chars_no_rank
+    home_char_limit = 12 if home_font == SMALLER_FONT else max_chars_with_rank if home_rank is not None else max_chars_no_rank
     
     if away_rank is not None:
         away_display = f"#{away_rank} {away}"[:away_char_limit]
@@ -983,11 +1117,11 @@ def update_game_display(game):
         
         board4_player_label.text = name
         board4_stat_label.text = f"{stat_value} {stat_type}"
-        print(f"Game: {sport_short} {status_text} | {away_abbrev} {away_score} - {home_score} {home_abbrev} | {len(current_game_performers)} performers available")
+        #print(f"Game: {sport_short} {status_text} | {away_abbrev} {away_score} - {home_score} {home_abbrev} | {len(current_game_performers)} performers available")
     else:
         board4_player_label.text = "NO DATA"
         board4_stat_label.text = ""
-        print(f"Game: {sport_short} {status_text} | {away_abbrev} {away_score} - {home_score} {home_abbrev} | No performers")
+        #print(f"Game: {sport_short} {status_text} | {away_abbrev} {away_score} - {home_score} {home_abbrev} | No performers")
 
 
 # Initialize
@@ -1151,13 +1285,10 @@ def setup_display_layout():
     
     # Set the display once
     display.root_group = main_group
-    print("Display layout created with combined boards 2+3")
-
-print("Starting sports display...")
+    #("Display layout created with combined boards 2+3")
 
 # Create the display layout once
 setup_display_layout()
-
 # Main loop
 while True:
     current_time = time.monotonic()
@@ -1166,8 +1297,8 @@ while True:
     if wifi_connected and config_server:
         try:
             result = config_server.poll()
-            if result and result != "no_request":  # Only log actual requests
-                print(f"Config server handled request: {result}")
+            #if result and result != "no_request":  # Only log actual requests
+            #    print(f"Config server handled request: {result}")
         except Exception as poll_error:
             print(f"Config server poll error: {poll_error}")
     elif wifi_connected:
@@ -1175,15 +1306,8 @@ while True:
         if current_time - last_update < 10:  # Only print for first 10 seconds
             print(f"Config server not available: config_server={config_server}")
 
-    # Only fetch new data if we've displayed all current games OR it's been too long
-    # Dynamic timeout only applies when there's no next page available
-    #if next_page_url:
-    #    timeout = UPDATE_INTERVAL * 3  # Use longer timeout when more pages are available
-    #else:
     timeout = min(len(games) * DISPLAY_TIME + 1, UPDATE_INTERVAL*3)  # Dynamic timeout when no more pages
-    
-    #print(f"DEBUG - Games: {len(games)}, Has next page: {next_page_url is not None}, Timeout: {timeout}s, Time since update: {current_time - last_update:.1f}s")
-    
+        
     need_new_data = (
         len(games) == 0 or  # No games loaded yet
         (current_game + 1 >= len(games) and next_page_url and current_time - last_change >= DISPLAY_TIME) or  # Ready for next page
@@ -1192,7 +1316,7 @@ while True:
     )
     
     if need_new_data:
-        print("Fetching sports data...")
+        #print("Fetching sports data...")
         
         # Use next_page_url if available, otherwise start from beginning
         url_to_fetch = next_page_url if next_page_url else None
@@ -1206,11 +1330,11 @@ while True:
             # Show the first game immediately when new data loads
             update_game_display(games[current_game])
             last_change = current_time  # Reset the timer
-            print(f"Loaded {len(games)} games. Has next pages: {next_page_url is not None}")
+            #print(f"Loaded {len(games)} games. Has next pages: {next_page_url is not None}")
         else:
             # If no new games and we have a next_page_url, reset to beginning
             if next_page_url:
-                print("No new games, resetting to first page")
+                #print("No new games, resetting to first page")
                 next_page_url = None
     
     # Show next game
@@ -1243,6 +1367,6 @@ while True:
             # Update both labels - only rows 2 and 3 change
             board4_player_label.text = name
             board4_stat_label.text = f"{stat_value} {stat_type}"
-            print(f"Updated Board 4 to show stat {performer_index + 1}/{len(current_game_performers)}: {name} - {stat_value} {stat_type}")
+            #print(f"Updated Board 4 to show stat {performer_index + 1}/{len(current_game_performers)}: {name} - {stat_value} {stat_type}")
     
     time.sleep(0.3)

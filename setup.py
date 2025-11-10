@@ -7,6 +7,10 @@ import microcontroller
 import time
 import os
 
+# Version info (keep in sync with code.py)
+VERSION = "1.0.0"
+GITHUB_REPO = "kevinfenger/ticker"
+
 try:
     from adafruit_httpserver import Server, Request, Response, GET, POST
     HTTPSERVER_AVAILABLE = True
@@ -37,8 +41,7 @@ def read_current_settings():
     settings = {
         'wifi_ssid': '',
         'wifi_password': '',
-        'sport': '',
-        'conferences': 'big_sky',
+        'collections': 'big_sky',
         'timezone': 'America/Denver',
         'api_url': 'http://143.110.202.154:8000/api/live'
     }
@@ -52,10 +55,9 @@ def read_current_settings():
                     settings['wifi_ssid'] = line.split('=')[1].strip().strip('"\'')
                 elif 'CIRCUITPY_WIFI_PASSWORD' in line and '=' in line:
                     settings['wifi_password'] = line.split('=')[1].strip().strip('"\'')
-                elif 'DETAILED_CONFERENCES' in line and '=' in line:
-                    settings['conferences'] = line.split('=')[1].strip().strip('"\'')
-                elif 'SPORTS_TYPE' in line and '=' in line:
-                    settings['sport'] = line.split('=')[1].strip().strip('"\'')
+                elif 'COLLECTIONS' in line and '=' in line:
+                    collections_value = line.split('=')[1].strip().strip('"\'')
+                    settings['collections'] = collections_value
                 elif 'TIMEZONE' in line and '=' in line:
                     settings['timezone'] = line.split('=')[1].strip().strip('"\'')
     except Exception as e:
@@ -63,11 +65,11 @@ def read_current_settings():
     
     return settings
 
-def save_settings(wifi_ssid, wifi_password, sport, conferences, timezone, api_url):
+def save_settings(wifi_ssid, wifi_password, collections, timezone, api_url):
     """Save new settings to settings.toml"""
     debug_info = []
     debug_info.append(f"Attempting to save settings...")
-    debug_info.append(f"SSID='{wifi_ssid}', Sports='{sport}', Conferences='{conferences}'")
+    debug_info.append(f"SSID='{wifi_ssid}', Collections='{collections}'")
     
     # Check what USB mode we're in and web workflow status
     try:
@@ -170,8 +172,7 @@ TIMEZONE = "{timezone}"
 
 # Sports API Configuration  
 API_BASE_URL = "{api_url}"
-SPORTS_TYPE = "{sport}"
-DETAILED_CONFERENCES = "{conferences}"
+COLLECTIONS = "{collections}"
 '''
         
         debug_info.append(f"Writing {len(settings_content)} characters to settings.toml")
@@ -230,40 +231,40 @@ DETAILED_CONFERENCES = "{conferences}"
 def get_setup_html(current_settings):
     """Generate the setup HTML page"""
     
-    # Get current sport and conference settings
-    current_sports = current_settings.get('sport', '')
-    current_conferences = current_settings.get('conferences', '')
+    # Get current collections settings (unified approach)
+    current_collections = current_settings.get('collections', '')
     
-    # Pre-compute checkbox states
-    sports_checked = {
-        'basketball_nba': 'checked' if 'basketball_nba' in current_sports else '',
-        'basketball_wnba': 'checked' if 'basketball_wnba' in current_sports else '',
-        'football_nfl': 'checked' if 'football_nfl' in current_sports else '',
-        'baseball_mlb': 'checked' if 'baseball_mlb' in current_sports else '',
-        'hockey_nhl': 'checked' if 'hockey_nhl' in current_sports else '',
-        'basketball_mens-college': 'checked' if 'basketball_mens-college' in current_sports else '',
-        'football_college': 'checked' if 'football_college' in current_sports else '',
-        'baseball_college-baseball': 'checked' if 'baseball_college-baseball' in current_sports else '',
-        'soccer_eng.1': 'checked' if 'soccer_eng.1' in current_sports else '',
-        'soccer_usa.1': 'checked' if 'soccer_usa.1' in current_sports else '',
-        'soccer_uefa.champions': 'checked' if 'soccer_uefa.champions' in current_sports else '',
-        'tennis_atp': 'checked' if 'tennis_atp' in current_sports else '',
-        'tennis_wta': 'checked' if 'tennis_wta' in current_sports else '',
-        'golf_pga': 'checked' if 'golf_pga' in current_sports else '',
+    # Pre-compute checkbox states (unified approach)
+    collections_checked = {
+        # Sports
+        'nba': 'checked' if 'nba' in current_collections else '',
+        'wnba': 'checked' if 'wnba' in current_collections else '',
+        'nfl': 'checked' if 'nfl' in current_collections else '',
+        'mlb': 'checked' if 'mlb' in current_collections else '',
+        'nhl': 'checked' if 'nhl' in current_collections else '',
+        'mens_college_basketball': 'checked' if 'mens_college_basketball' in current_collections else '',
+        'womens_college_basketball': 'checked' if 'womens_college_basketball' in current_collections else '',
+        'fcs': 'checked' if 'fcs' in current_collections else '',
+        'cfb': 'checked' if 'cfb' in current_collections else '',
+        'college_football': 'checked' if 'college_football' in current_collections else '',
+        'college_baseball': 'checked' if 'college_baseball' in current_collections else '',
+        'premier_league': 'checked' if 'premier_league' in current_collections else '',
+        'mls': 'checked' if 'mls' in current_collections else '',
+        'champions_league': 'checked' if 'champions_league' in current_collections else '',
+        'tennis_atp': 'checked' if 'tennis_atp' in current_collections else '',
+        'tennis_wta': 'checked' if 'tennis_wta' in current_collections else '',
+        'golf_pga': 'checked' if 'golf_pga' in current_collections else '',
+        # Top 25 Rankings
+        'cfb_top_25': 'checked' if 'cfb_top_25' in current_collections else '',
+        'mcbb_top_25': 'checked' if 'mcbb_top_25' in current_collections else '',
+        # Conferences
+        'big_sky': 'checked' if 'big_sky' in current_collections else '',
+        'big_12': 'checked' if 'big_12' in current_collections else '',
+        'mvfc': 'checked' if 'mvfc' in current_collections else '',
     }
     
-    conferences_checked = {
-        'big_sky': 'checked' if 'big_sky' in current_conferences else '',
-        'big_12': 'checked' if 'big_12' in current_conferences else '',
-        'mvfc': 'checked' if 'mvfc' in current_conferences else '',
-        'fcs': 'checked' if 'fcs' in current_conferences else '',
-        'all': 'checked' if 'all' in current_conferences else '',
-    }
-    
-    print(f"Sports settings: '{current_sports}'")
-    print(f"Conference settings: '{current_conferences}'")
-    print(f"Sports checked states: {sports_checked}")
-    print(f"Conference checked states: {conferences_checked}")
+    print(f"Collections settings: '{current_collections}'")
+    print(f"Collections checked states: {collections_checked}")
     
     return f'''<!DOCTYPE html>
 <html>
@@ -454,149 +455,182 @@ def get_setup_html(current_settings):
                     <span id="current-selections">Loading selections...</span>
                 </div>
                 
+                <h4>&#8226; Professional Sports:</h4>
                 <div class="checkbox-grid">
-                    <!-- Professional Sports -->
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="basketball_nba" {sports_checked['basketball_nba']}>
+                        <input type="checkbox" name="collections" value="nba" {collections_checked['nba']}>
                         <div class="checkbox-label">
                             [NBA] Basketball
                             <div class="checkbox-small">Professional basketball league</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="basketball_wnba" {sports_checked['basketball_wnba']}>
+                        <input type="checkbox" name="collections" value="wnba" {collections_checked['wnba']}>
                         <div class="checkbox-label">
                             [WNBA] Basketball
                             <div class="checkbox-small">Women's professional basketball</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="football_nfl" {sports_checked['football_nfl']}>
+                        <input type="checkbox" name="collections" value="nfl" {collections_checked['nfl']}>
                         <div class="checkbox-label">
                             [NFL] Football
                             <div class="checkbox-small">Professional football league</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="baseball_mlb" {sports_checked['baseball_mlb']}>
+                        <input type="checkbox" name="collections" value="mlb" {collections_checked['mlb']}>
                         <div class="checkbox-label">
                             [MLB] Baseball
                             <div class="checkbox-small">Professional baseball league</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="hockey_nhl" {sports_checked['hockey_nhl']}>
+                        <input type="checkbox" name="collections" value="nhl" {collections_checked['nhl']}>
                         <div class="checkbox-label">
                             [NHL] Hockey
                             <div class="checkbox-small">Professional hockey league</div>
                         </div>
                     </label>
+                </div>
                     
-                    <!-- College Sports with Conferences -->
+                <h4>&#8226; College Sports:</h4>
+                <div class="checkbox-grid">
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="basketball_mens-college" {sports_checked['basketball_mens-college']}>
+                        <input type="checkbox" name="collections" value="mens_college_basketball" {collections_checked['mens_college_basketball']}>
                         <div class="checkbox-label">
                             [College] Basketball (Men)
                             <div class="checkbox-small">Featured mens college basketball games</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="football_college" {sports_checked['football_college']}>
+                        <input type="checkbox" name="collections" value="womens_college_basketball" {collections_checked['womens_college_basketball']}>
                         <div class="checkbox-label">
-                            [College] Football
-                            <div class="checkbox-small">Featured mens college football games</div>
+                            [College] Basketball (Womens)
+                            <div class="checkbox-small">Featured womens college basketball games</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="baseball_college-baseball" {sports_checked['baseball_college-baseball']}>
+                        <input type="checkbox" name="collections" value="college_football" {collections_checked['college_football']}>
+                        <div class="checkbox-label">
+                            [College] All College Football (FBS + FCS)
+                            <div class="checkbox-small">All college football - large</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="cfb" {collections_checked['cfb']}>
+                        <div class="checkbox-label">
+                            [College] College Football Smaller Subset
+                            <div class="checkbox-small">All college football - small</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="fcs" {collections_checked['fcs']}>
+                        <div class="checkbox-label">
+                            [College] FCS College Football
+                            <div class="checkbox-small">just FCS football</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="college_baseball" {collections_checked['college_baseball']}>
                         <div class="checkbox-label">
                             [College] Baseball
                             <div class="checkbox-small">Featured college baseball games</div>
                         </div>
                     </label>
+                </div>
                     
-                    <!-- Soccer/International -->
+                <h4>&#8226; Top 25 Rankings:</h4>
+                <div class="checkbox-grid">
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="soccer_eng.1" {sports_checked['soccer_eng.1']}>
+                        <input type="checkbox" name="collections" value="cfb_top_25" {collections_checked['cfb_top_25']}>
+                        <div class="checkbox-label">
+                            [Top 25] College Football
+                            <div class="checkbox-small">Top 25 ranked college football teams</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="mcbb_top_25" {collections_checked['mcbb_top_25']}>
+                        <div class="checkbox-label">
+                            [Top 25] Men's College Basketball
+                            <div class="checkbox-small">Top 25 ranked mens college basketball teams</div>
+                        </div>
+                    </label>
+                </div>
+                    
+                <h4>&#8226; International Sports:</h4>
+                <div class="checkbox-grid">
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="premier_league" {collections_checked['premier_league']}>
                         <div class="checkbox-label">
                             [Soccer] Premier League
                             <div class="checkbox-small">English football</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="soccer_usa.1" {sports_checked['soccer_usa.1']}>
+                        <input type="checkbox" name="collections" value="mls" {collections_checked['mls']}>
                         <div class="checkbox-label">
                             [Soccer] MLS
                             <div class="checkbox-small">Major League Soccer</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="soccer_uefa.champions" {sports_checked['soccer_uefa.champions']}>
+                        <input type="checkbox" name="collections" value="champions_league" {collections_checked['champions_league']}>
                         <div class="checkbox-label">
                             [Soccer] Champions League
                             <div class="checkbox-small">European tournament</div>
                         </div>
                     </label>
-                    
-                    <!-- Other Sports -->
+                </div>
+                <!-- TODO TEMPORARILY DISABLED - No handling for individual leaderboards on the frontend -->
+                <!--    
+                <h4>&#8226; Individual Sports:</h4>
+                <div class="checkbox-grid">
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="tennis_atp" {sports_checked['tennis_atp']}>
+                        <input type="checkbox" name="collections" value="tennis_atp" {collections_checked['tennis_atp']}>
                         <div class="checkbox-label">
                             [Tennis] ATP
                             <div class="checkbox-small">Men's professional tennis</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="tennis_wta" {sports_checked['tennis_wta']}>
+                        <input type="checkbox" name="collections" value="tennis_wta" {collections_checked['tennis_wta']}>
                         <div class="checkbox-label">
                             [Tennis] WTA
                             <div class="checkbox-small">Women's professional tennis</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="sports" value="golf_pga" {sports_checked['golf_pga']}>
+                        <input type="checkbox" name="collections" value="golf_pga" {collections_checked['golf_pga']}>
                         <div class="checkbox-label">
                             [Golf] PGA
                             <div class="checkbox-small">Professional golf tour</div>
                         </div>
                     </label>
                 </div>
+                -->
 
                 <h4>&#8226; Conferences:</h4>
                 <div class="checkbox-grid">
                     <label class="checkbox-item">
-                        <input type="checkbox" name="conferences" value="big_sky" {conferences_checked['big_sky']}>
+                        <input type="checkbox" name="collections" value="big_sky" {collections_checked['big_sky']}>
                         <div class="checkbox-label">
                             Big Sky Conference
                             <div class="checkbox-small">Basketball: Group 5, Football: Group 20</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="conferences" value="big_12" {conferences_checked['big_12']}>
+                        <input type="checkbox" name="collections" value="big_12" {collections_checked['big_12']}>
                         <div class="checkbox-label">
                             Big 12
                             <div class="checkbox-small">Basketball: Group 21</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="conferences" value="mvfc" {conferences_checked['mvfc']}>
+                        <input type="checkbox" name="collections" value="mvfc" {collections_checked['mvfc']}>
                         <div class="checkbox-label">
                             MVFC/Missouri Valley
                             <div class="checkbox-small">Football: Group 21</div>
-                        </div>
-                    </label>
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="conferences" value="fcs" {conferences_checked['fcs']}>
-                        <div class="checkbox-label">
-                            FCS Football
-                            <div class="checkbox-small">Football: Group 81</div>
-                        </div>
-                    </label>
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="conferences" value="all" {conferences_checked['all']}>
-                        <div class="checkbox-label">
-                            All NCAA
-                            <div class="checkbox-small">Football: Group 90 (FBS + FCS)</div>
                         </div>
                     </label>
                 </div>
@@ -664,6 +698,26 @@ def get_setup_html(current_settings):
                 <span style="color: #1976d2;">After startup, this URL will be displayed on your LED matrix for easy access!</span>
             </div>
         </div>
+        
+        <div class="section" style="margin-top: 20px;">
+            <h4 style="margin-bottom: 10px; color: #333;">Device Information</h4>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span><strong>Current Version:</strong></span>
+                    <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">v{VERSION}</code>
+                </div>
+                <!-- TODO TEMPORARILY DISABLED - Update functionality hidden until implementation decided -->
+                <!--
+                <div style="margin-bottom: 10px;">
+                    <button type="button" id="checkUpdatesBtn" onclick="checkForUpdates()" 
+                            style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        Check for Updates
+                    </button>
+                </div>
+                <div id="updateStatus" style="margin-top: 10px; font-size: 13px;"></div>
+                -->
+            </div>
+        </div>
     </div>
     
     <script>
@@ -695,23 +749,80 @@ def get_setup_html(current_settings):
             }}
         }}
 
+        function checkForUpdates() {{
+            const btn = document.getElementById('checkUpdatesBtn');
+            const status = document.getElementById('updateStatus');
+            
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            status.innerHTML = '<span style="color: #6c757d;">Checking GitHub for updates...</span>';
+            
+            fetch('/check-updates')
+                .then(response => response.json())
+                .then(data => {{
+                    if (data.available) {{
+                        status.innerHTML = `
+                            <div style="color: #28a745; margin-bottom: 8px;">
+                                <strong>✓ Update Available: v${{data.version}}</strong>
+                            </div>
+                            <div style="font-size: 12px; color: #6c757d; margin-bottom: 8px;">
+                                Released: ${{data.published}}
+                            </div>
+                            <button onclick="installUpdate('${{data.version}}')" 
+                                    style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                                Install Update
+                            </button>
+                        `;
+                    }} else if (data.error) {{
+                        status.innerHTML = `<span style="color: #dc3545;">Error: ${{data.error}}</span>`;
+                    }} else {{
+                        status.innerHTML = `<span style="color: #28a745;">✓ Running latest version (${{data.current}})</span>`;
+                    }}
+                }})
+                .catch(err => {{
+                    status.innerHTML = `<span style="color: #dc3545;">Error checking for updates: ${{err.message}}</span>`;
+                }})
+                .finally(() => {{
+                    btn.disabled = false;
+                    btn.textContent = 'Check for Updates';
+                }});
+        }}
+        
+        function installUpdate(version) {{
+            if (!confirm(`Install update v${{version}}? This will restart the device.`)) {{
+                return;
+            }}
+            
+            const status = document.getElementById('updateStatus');
+            status.innerHTML = '<span style="color: #007bff;">Installing update... Device will restart automatically.</span>';
+            
+            fetch('/install-update', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{version: version}})
+            }})
+            .then(response => response.json())
+            .then(data => {{
+                if (data.success) {{
+                    status.innerHTML = '<span style="color: #28a745;">Update installed successfully. Restarting...</span>';
+                }} else {{
+                    status.innerHTML = `<span style="color: #dc3545;">Update failed: ${{data.error}}</span>`;
+                }}
+            }})
+            .catch(err => {{
+                status.innerHTML = `<span style="color: #dc3545;">Update failed: ${{err.message}}</span>`;
+            }});
+        }}
+
         function updateCurrentSelections() {{
             const allSelected = [];
 
-            // Get selected sports
-            const sportCheckboxes = document.querySelectorAll('input[name="sports"]:checked');
-            sportCheckboxes.forEach(checkbox => {{
+            // Get all selected collections
+            const collectionCheckboxes = document.querySelectorAll('input[name="collections"]:checked');
+            collectionCheckboxes.forEach(checkbox => {{
                 const label = checkbox.closest('.checkbox-item').querySelector('.checkbox-label');
-                const sportName = label.firstChild.textContent.trim();
-                allSelected.push(sportName);
-            }});
-
-            // Get selected conferences
-            const conferenceCheckboxes = document.querySelectorAll('input[name="conferences"]:checked');
-            conferenceCheckboxes.forEach(checkbox => {{
-                const label = checkbox.closest('.checkbox-item').querySelector('.checkbox-label');
-                const confName = label.firstChild.textContent.trim();
-                allSelected.push(confName);
+                const collectionName = label.firstChild.textContent.trim();
+                allSelected.push(collectionName);
             }});
 
             // Update display
@@ -742,7 +853,7 @@ def get_setup_html(current_settings):
             updateCurrentSelections();
             
             // Add change listeners to all checkboxes
-            const allCheckboxes = document.querySelectorAll('input[name="sports"], input[name="conferences"]');
+            const allCheckboxes = document.querySelectorAll('input[name="collections"]');
             allCheckboxes.forEach(checkbox => {{
                 checkbox.addEventListener('change', updateCurrentSelections);
             }});
@@ -853,27 +964,24 @@ def start_config_server(setup_mode=True, pool=None):
             wifi_ssid = form_data.get('wifi_ssid', '').strip()
             wifi_password = form_data.get('wifi_password', '').strip()
             
-            # Handle multiple sports selections
-            sports_raw = form_data.get('sports', 'basketball_mens-college')
-            if isinstance(sports_raw, list):
-                sport = ','.join(sports_raw)
-            else:
-                sport = sports_raw.strip() if sports_raw else 'basketball_mens-college'
+            # Handle multiple collections selections
+            collections_raw = form_data.get('collections', [])
             
-            # Handle multiple conference selections
-            conferences_raw = form_data.get('conferences', 'big_sky')
-            if isinstance(conferences_raw, list):
-                conferences = ','.join(conferences_raw)
+            if isinstance(collections_raw, list):
+                collections = ','.join(collections_raw)
+            elif collections_raw and collections_raw.strip():
+                collections = collections_raw.strip()
             else:
-                conferences = conferences_raw.strip() if conferences_raw else 'big_sky'
+                # Default if nothing selected
+                collections = 'basketball_mens-college,big_sky'
             
             timezone = form_data.get('timezone', 'America/Denver').strip()
             api_url = form_data.get('api_url', 'http://143.110.202.154:8000/api/live').strip()
             
-            print(f"Saving: SSID={wifi_ssid}, Sports={sport}, Conf={conferences}, TZ={timezone}")
+            print(f"Saving: SSID={wifi_ssid}, Collections={collections}, TZ={timezone}")
             
             if wifi_ssid and wifi_password:
-                save_result = save_settings(wifi_ssid, wifi_password, sport, conferences, timezone, api_url)
+                save_result = save_settings(wifi_ssid, wifi_password, collections, timezone, api_url)
                 
                 # Handle both old format (True/False/string) and new format (tuple with debug info)
                 if save_result == True:
@@ -1045,6 +1153,44 @@ def start_config_server(setup_mode=True, pool=None):
         except Exception as e:
             print(f"Error processing form: {e}")
             return Response(request, f"Error: {e}", content_type="text/plain")
+    
+    @server.route("/check-updates", GET)
+    def check_updates_endpoint(request: Request):
+        """API endpoint to check for GitHub updates"""
+        try:
+            # Import the update function from code.py
+            import code
+            update_info = code.check_github_releases()
+            
+            # Return JSON response
+            import json
+            return Response(request, json.dumps(update_info), content_type="application/json")
+            
+        except Exception as e:
+            print(f"Error checking updates: {e}")
+            error_response = {{'error': str(e)}}
+            import json
+            return Response(request, json.dumps(error_response), content_type="application/json")
+    
+    @server.route("/install-update", POST)
+    def install_update_endpoint(request: Request):
+        """API endpoint to install updates (placeholder for now)"""
+        try:
+            import json
+            
+            # For now, just return that the feature is not implemented yet
+            response = {{
+                'success': False,
+                'error': 'Update installation will be implemented in the next phase'
+            }}
+            
+            return Response(request, json.dumps(response), content_type="application/json")
+            
+        except Exception as e:
+            print(f"Error in update installation: {e}")
+            error_response = {{'success': False, 'error': str(e)}}
+            import json
+            return Response(request, json.dumps(error_response), content_type="application/json")
     
     # Start the server based on mode
     if setup_mode:
