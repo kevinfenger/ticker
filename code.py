@@ -157,7 +157,7 @@ except:
 displayio.release_displays()
 
 # Colors
-TEXT_WHITE = 0xFFFFFF
+TEXT_WHITE = 0xC0C0C0  # Power-efficient white (75% brightness instead of 100%)
 TEXT_GREEN = 0x00FF00
 TEXT_RED = 0xFF0000
 TEXT_YELLOW = 0xFFFF00
@@ -659,6 +659,7 @@ def load_league_logo(sport_short):
             'MLB': 'MLB.bmp',
             'NHL': 'NHL.bmp',
             'MBB': 'college.bmp',  # College Basketball uses college logo
+            'WBB': 'college.bmp',
             'CFB': 'college.bmp'   # College Football uses college logo
         }
         
@@ -708,7 +709,8 @@ def load_team_logo(team_abbrev, sport_short):
             'NFL': 'nfl', 
             'MLB': 'mlb',
             'NHL': 'nhl',
-            'MBB': 'college',  # College Basketball
+            'MBB': 'college',  # Mens College Basketball
+            'WBB': 'college',  # Womens College Basketball
             'CFB': 'college'   # College Football
         }
         
@@ -993,7 +995,7 @@ def hex_to_rgb(hex_color):
     except ValueError:
         return None
 
-def brighten_color(color_int, min_brightness=120, threshold=60):
+def brighten_color(color_int, min_brightness=120, threshold=90):
     """Brighten a 24-bit color if it's too dark for LED matrix visibility"""
     # Extract RGB components
     r = (color_int >> 16) & 0xFF
@@ -1016,7 +1018,21 @@ def brighten_logo_palette(palette):
     try:
         # Skip index 0 (usually background/transparent) and process other colors
         for i in range(1, len(palette)):
-            palette[i] = brighten_color(palette[i])
+            original_color = palette[i]
+            brightened_color = brighten_color(original_color)
+            
+            # Handle white/light colors specially for better logo text visibility
+            if original_color == 0xFFFFFF:
+                # Keep pure white as bright white for logo text (like OSU letters)
+                brightened_color = 0xF0F0F0  # Slightly dimmed but still very bright
+            elif brightened_color == 0xFFFFFF:
+                # If brighten_color made something pure white, use bright white
+                brightened_color = 0xF0F0F0  # Bright but power-efficient
+            elif original_color >= 0xE0E0E0:
+                # Very light colors (like off-white) should stay bright for visibility
+                brightened_color = max(0xE0E0E0, brightened_color)
+            
+            palette[i] = brightened_color
         
         return palette
     except Exception as e:
@@ -1062,8 +1078,10 @@ def update_game_display(game):
         sport_short = 'NFL'
     elif 'MLB' in sport:
         sport_short = 'MLB'
-    elif 'College' in sport and 'Basketball' in sport:
+    elif 'College' in sport and 'Basketball Mens' in sport:
         sport_short = 'MBB'
+    elif 'College' in sport and 'Basketball Womens' in sport:
+        sport_short = 'WBB'
     elif 'College' in sport and 'Football' in sport:
         sport_short = 'CFB'
     elif 'Soccer' in sport:
@@ -1538,9 +1556,9 @@ while True:
         
     need_new_data = (
         len(games) == 0 or  # No games loaded yet
-        (current_game + 1 >= len(games) and next_page_url and current_time - last_change >= DISPLAY_TIME) or  # Ready for next page
+        (current_game >= len(games) and next_page_url and current_time - last_change >= DISPLAY_TIME) or  # Ready for next page
         (not next_page_url and current_time - last_update >= timeout)  or # Dynamic timeout only when no next page
-        (current_time - last_update >= UPDATE_INTERVAL * 3)  # fallback max timeout
+        (current_time - last_update >= UPDATE_INTERVAL * 4)  # fallback max timeout
     )
     
     if need_new_data:
@@ -1553,10 +1571,8 @@ while True:
             next_page_url = new_next_page_url
             current_game = 0
             last_update = current_time
-            # Show the first game immediately when new data loads (if we have valid games)
-            if games:
-                update_game_display(games[current_game])
-                last_change = current_time  # Reset the timer
+            # Force immediate display by resetting the timer to trigger cycling logic
+            last_change = current_time - DISPLAY_TIME
         else:
             # If no new games and we have a next_page_url, reset to beginning
             if next_page_url:
@@ -1567,7 +1583,9 @@ while True:
         if current_game < len(games) and games[current_game] is not None:
             update_game_display(games[current_game])
             display_stats()
-        current_game = (current_game + 1) % len(games)
+        else:
+            print(f"DEBUG: Skipping game {current_game} - out of range or None")
+        current_game = current_game + 1  # Remove modulo - let pagination logic handle wraparound
         last_change = current_time
     
     time.sleep(0.1)  # Reduced sleep time since stats function handles its own timing

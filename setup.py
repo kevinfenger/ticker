@@ -41,9 +41,9 @@ def read_current_settings():
     settings = {
         'wifi_ssid': '',
         'wifi_password': '',
-        'collections': 'big_sky',
+        'collections': 'nfl',
         'timezone': 'America/Denver',
-        'api_url': 'http://143.110.202.154:8000/api/live'
+        'api_url': 'http://143.110.202.154/api/live'
     }
     
     try:
@@ -234,33 +234,114 @@ def get_setup_html(current_settings):
     # Get current collections settings (unified approach)
     current_collections = current_settings.get('collections', '')
     
-    # Pre-compute checkbox states (unified approach)
+    # Split collections into a set for exact matching
+    collections_list = set(col.strip() for col in current_collections.split(',') if col.strip())
+    
+    # Helper function for exact collection matching
+    def is_checked(collection_name):
+        return 'checked' if collection_name in collections_list else ''
+    
+    # Pre-compute checkbox states (unified approach with exact matching)
     collections_checked = {
         # Sports
-        'nba': 'checked' if 'nba' in current_collections else '',
-        'wnba': 'checked' if 'wnba' in current_collections else '',
-        'nfl': 'checked' if 'nfl' in current_collections else '',
-        'mlb': 'checked' if 'mlb' in current_collections else '',
-        'nhl': 'checked' if 'nhl' in current_collections else '',
-        'mens_college_basketball': 'checked' if 'mens_college_basketball' in current_collections else '',
-        'womens_college_basketball': 'checked' if 'womens_college_basketball' in current_collections else '',
-        'fcs': 'checked' if 'fcs' in current_collections else '',
-        'cfb': 'checked' if 'cfb' in current_collections else '',
-        'college_football': 'checked' if 'college_football' in current_collections else '',
-        'college_baseball': 'checked' if 'college_baseball' in current_collections else '',
-        'premier_league': 'checked' if 'premier_league' in current_collections else '',
-        'mls': 'checked' if 'mls' in current_collections else '',
-        'champions_league': 'checked' if 'champions_league' in current_collections else '',
-        'tennis_atp': 'checked' if 'tennis_atp' in current_collections else '',
-        'tennis_wta': 'checked' if 'tennis_wta' in current_collections else '',
-        'golf_pga': 'checked' if 'golf_pga' in current_collections else '',
+        'nba': is_checked('nba'),
+        'wnba': is_checked('wnba'),
+        'nfl': is_checked('nfl'),
+        'mlb': is_checked('mlb'),
+        'nhl': is_checked('nhl'),
+        'mens_college_basketball': is_checked('mens_college_basketball'),
+        'womens_college_basketball': is_checked('womens_college_basketball'),
+        'fcs_football': is_checked('fcs_football'),
+        'fbs_football': is_checked('fbs_football'),
+        'd2_football': is_checked('d2_football'),
+        'd3_football': is_checked('d3_football'),
+        'cfb': is_checked('cfb'),
+        'college_football': is_checked('college_football'),
+        'all_college_football': is_checked('all_college_football'),
+        'college_baseball': is_checked('college_baseball'),
+        'premier_league': is_checked('premier_league'),
+        'mls': is_checked('mls'),
+        'champions_league': is_checked('champions_league'),
+        'tennis_atp': is_checked('tennis_atp'),
+        'tennis_wta': is_checked('tennis_wta'),
+        'golf_pga': is_checked('golf_pga'),
         # Top 25 Rankings
-        'cfb_top_25': 'checked' if 'cfb_top_25' in current_collections else '',
-        'mcbb_top_25': 'checked' if 'mcbb_top_25' in current_collections else '',
-        # Conferences
-        'big_sky': 'checked' if 'big_sky' in current_collections else '',
-        'big_12': 'checked' if 'big_12' in current_collections else '',
-        'mvfc': 'checked' if 'mvfc' in current_collections else '',
+        'cfb_top_25': is_checked('cfb_top_25'),
+        'mcbb_top_25': is_checked('mcbb_top_25'),
+        # Conference Sports
+        'acc_mens_basketball': is_checked('acc_mens_basketball'),
+        'acc_womens_basketball': is_checked('acc_womens_basketball'),
+        'acc_football': is_checked('acc_football'),
+        'america_east_mens_basketball': is_checked('america_east_mens_basketball'),
+        'america_east_womens_basketball': is_checked('america_east_womens_basketball'),
+        'asun_mens_basketball': is_checked('asun_mens_basketball'),
+        'asun_womens_basketball': is_checked('asun_womens_basketball'),
+        'a_10_mens_basketball': is_checked('a_10_mens_basketball'),
+        'a_10_womens_basketball': is_checked('a_10_womens_basketball'),
+        'big_12_mens_basketball': is_checked('big_12_mens_basketball'),
+        'big_12_womens_basketball': is_checked('big_12_womens_basketball'),
+        'big_12_football': is_checked('big_12_football'),
+        'big_east_mens_basketball': is_checked('big_east_mens_basketball'),
+        'big_east_womens_basketball': is_checked('big_east_womens_basketball'),
+        'big_sky_mens_basketball': is_checked('big_sky_mens_basketball'),
+        'big_sky_womens_basketball': is_checked('big_sky_womens_basketball'),
+        'big_sky_football': is_checked('big_sky_football'),
+        'big_ten_mens_basketball': is_checked('big_ten_mens_basketball'),
+        'big_ten_womens_basketball': is_checked('big_ten_womens_basketball'),
+        'big_ten_football': is_checked('big_ten_football'),
+        'big_west_mens_basketball': is_checked('big_west_mens_basketball'),
+        'big_west_womens_basketball': is_checked('big_west_womens_basketball'),
+        'coastal_mens_basketball': is_checked('coastal_mens_basketball'),
+        'coastal_womens_basketball': is_checked('coastal_womens_basketball'),
+        'conference_usa_mens_basketball': is_checked('conference_usa_mens_basketball'),
+        'conference_usa_womens_basketball': is_checked('conference_usa_womens_basketball'),
+        'conference_usa_football': is_checked('conference_usa_football'),
+        'horizon_league_mens_basketball': is_checked('horizon_league_mens_basketball'),
+        'horizon_league_womens_basketball': is_checked('horizon_league_womens_basketball'),
+        'ivy_league_mens_basketball': is_checked('ivy_league_mens_basketball'),
+        'ivy_league_womens_basketball': is_checked('ivy_league_womens_basketball'),
+        'mac_mens_basketball': is_checked('mac_mens_basketball'),
+        'mac_womens_basketball': is_checked('mac_womens_basketball'),
+        'mac_football': is_checked('mac_football'),
+        'maac_mens_basketball': is_checked('maac_mens_basketball'),
+        'maac_womens_basketball': is_checked('maac_womens_basketball'),
+        'meac_mens_basketball': is_checked('meac_mens_basketball'),
+        'meac_womens_basketball': is_checked('meac_womens_basketball'),
+        'missouri_valley_mens_basketball': is_checked('missouri_valley_mens_basketball'),
+        'missouri_valley_womens_basketball': is_checked('missouri_valley_womens_basketball'),
+        'mvfc_football': is_checked('mvfc_football'),
+        'mountain_west_football': is_checked('mountain_west_football'),
+        'northeast_mens_basketball': is_checked('northeast_mens_basketball'),
+        'northeast_womens_basketball': is_checked('northeast_womens_basketball'),
+        'ohio_valley_mens_basketball': is_checked('ohio_valley_mens_basketball'),
+        'ohio_valley_womens_basketball': is_checked('ohio_valley_womens_basketball'),
+        'pac_12_mens_basketball': is_checked('pac_12_mens_basketball'),
+        'pac_12_womens_basketball': is_checked('pac_12_womens_basketball'),
+        'patriot_league_mens_basketball': is_checked('patriot_league_mens_basketball'),
+        'patriot_league_womens_basketball': is_checked('patriot_league_womens_basketball'),
+        'patriot_league_football': is_checked('patriot_league_football'),
+        'sec_mens_basketball': is_checked('sec_mens_basketball'),
+        'sec_womens_basketball': is_checked('sec_womens_basketball'),
+        'sec_football': is_checked('sec_football'),
+        'southern_mens_basketball': is_checked('southern_mens_basketball'),
+        'southern_womens_basketball': is_checked('southern_womens_basketball'),
+        'southern_football': is_checked('southern_football'),
+        'southland_mens_basketball': is_checked('southland_mens_basketball'),
+        'southland_womens_basketball': is_checked('southland_womens_basketball'),
+        'sun_belt_mens_basketball': is_checked('sun_belt_mens_basketball'),
+        'sun_belt_womens_basketball': is_checked('sun_belt_womens_basketball'),
+        'swac_mens_basketball': is_checked('swac_mens_basketball'),
+        'swac_womens_basketball': is_checked('swac_womens_basketball'),
+        'swac_football': is_checked('swac_football'),
+        'uac_football': is_checked('uac_football'),
+        'wac_mens_basketball': is_checked('wac_mens_basketball'),
+        'wac_womens_basketball': is_checked('wac_womens_basketball'),
+        'wcc_mens_basketball': is_checked('wcc_mens_basketball'),
+        'wcc_womens_basketball': is_checked('wcc_womens_basketball'),
+        # Legacy Conferences (keep for backward compatibility)
+        #'big_sky': 'checked' if 'big_sky' in current_collections else '',
+        #'big_12': 'checked' if 'big_12' in current_collections else '',
+        #'mvfc': 'checked' if 'mvfc' in current_collections else '',
     }
     
     print(f"Collections settings: '{current_collections}'")
@@ -405,8 +486,7 @@ def get_setup_html(current_settings):
         }}
         .checkbox-item input[type="checkbox"] {{
             margin: 2px 10px 0 0;
-            width: 18px;
-            height: 18px;
+            width: auto;
             flex-shrink: 0;
             cursor: pointer;
             z-index: 10;
@@ -430,6 +510,87 @@ def get_setup_html(current_settings):
             font-size: 11px;
             color: #666;
             margin-top: 2px;
+        }}
+        
+        /* Collapsible Conference Sections */
+        .conference-section {{
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }}
+        .conference-header {{
+            background: #f8f9fa;
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            transition: background-color 0.2s;
+        }}
+        .conference-header:hover {{
+            background: #e9ecef;
+        }}
+        .conference-header.expanded {{
+            background: #007cba;
+            color: white;
+            border-color: #007cba;
+        }}
+        .conference-toggle {{
+            font-size: 18px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }}
+        .conference-toggle.expanded {{
+            transform: rotate(90deg);
+        }}
+        .conference-content {{
+            display: none;
+            padding: 12px;
+            background: white;
+        }}
+        .conference-content.expanded {{
+            display: block;
+        }}
+        .conference-sports {{
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }}
+        .sport-item {{
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #fafafa;
+            transition: all 0.2s;
+        }}
+        .sport-item:hover {{
+            border-color: #007cba;
+            background: #f0f8ff;
+        }}
+        .sport-item input[type="checkbox"] {{
+            margin-right: 10px;
+            transform: scale(1.1);
+            accent-color: #007cba;
+            width: auto;
+            flex-shrink: 0;
+        }}
+        .sport-item input[type="checkbox"]:checked {{
+            background-color: #007cba;
+        }}
+        .sport-item input[type="checkbox"]:checked + .sport-label {{
+            font-weight: 600;
+            color: #007cba;
+        }}
+        .sport-label {{
+            font-size: 13px;
+            line-height: 1.2;
         }}
     </style>
 </head>
@@ -513,8 +674,15 @@ def get_setup_html(current_settings):
                     <label class="checkbox-item">
                         <input type="checkbox" name="collections" value="college_football" {collections_checked['college_football']}>
                         <div class="checkbox-label">
-                            [College] All College Football (FBS + FCS)
-                            <div class="checkbox-small">All college football - large</div>
+                            [College] FBS + FCS College Football
+                            <div class="checkbox-small">All college football - fbs + fcs</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="all_college_football" {collections_checked['all_college_football']}>
+                        <div class="checkbox-label">
+                            [College] FBS + FCS + D2 + D3 College Football
+                            <div class="checkbox-small">All college football - all divisions</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
@@ -525,10 +693,31 @@ def get_setup_html(current_settings):
                         </div>
                     </label>
                     <label class="checkbox-item">
-                        <input type="checkbox" name="collections" value="fcs" {collections_checked['fcs']}>
+                        <input type="checkbox" name="collections" value="fcs_football" {collections_checked['fcs_football']}>
                         <div class="checkbox-label">
                             [College] FCS College Football
                             <div class="checkbox-small">just FCS football</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="fbs_football" {collections_checked['fbs_football']}>
+                        <div class="checkbox-label">
+                            [College] FBS Football
+                            <div class="checkbox-small">Division I FBS college football</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="d2_football" {collections_checked['d2_football']}>
+                        <div class="checkbox-label">
+                            [College] Division II Football
+                            <div class="checkbox-small">NCAA Division II college football</div>
+                        </div>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="collections" value="d3_football" {collections_checked['d3_football']}>
+                        <div class="checkbox-label">
+                            [College] Division III Football
+                            <div class="checkbox-small">NCAA Division III college football</div>
                         </div>
                     </label>
                     <label class="checkbox-item">
@@ -610,29 +799,654 @@ def get_setup_html(current_settings):
                 </div>
                 -->
 
-                <h4>&#8226; Conferences:</h4>
-                <div class="checkbox-grid">
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="collections" value="big_sky" {collections_checked['big_sky']}>
-                        <div class="checkbox-label">
-                            Big Sky Conference
-                            <div class="checkbox-small">Basketball: Group 5, Football: Group 20</div>
+                <h4>&#8226; College Sports by Conference:</h4>
+                
+                <!-- ACC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('acc')">
+                        <span>ACC (Atlantic Coast Conference)</span>
+                        <span class="conference-toggle" id="acc-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="acc-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="acc_mens_basketball" {collections_checked['acc_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="acc_womens_basketball" {collections_checked['acc_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="acc_football" {collections_checked['acc_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
                         </div>
-                    </label>
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="collections" value="big_12" {collections_checked['big_12']}>
-                        <div class="checkbox-label">
-                            Big 12
-                            <div class="checkbox-small">Basketball: Group 21</div>
+                    </div>
+                </div>
+
+                <!-- America East Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('america-east')">
+                        <span>America East Conference</span>
+                        <span class="conference-toggle" id="america-east-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="america-east-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="america_east_mens_basketball" {collections_checked['america_east_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="america_east_womens_basketball" {collections_checked['america_east_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
                         </div>
-                    </label>
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="collections" value="mvfc" {collections_checked['mvfc']}>
-                        <div class="checkbox-label">
-                            MVFC/Missouri Valley
-                            <div class="checkbox-small">Football: Group 21</div>
+                    </div>
+                </div>
+
+                <!-- ASUN Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('asun')">
+                        <span>ASUN Conference</span>
+                        <span class="conference-toggle" id="asun-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="asun-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="asun_mens_basketball" {collections_checked['asun_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="asun_womens_basketball" {collections_checked['asun_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
                         </div>
-                    </label>
+                    </div>
+                </div>
+
+                <!-- Atlantic 10 Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('a10')">
+                        <span>Atlantic 10 Conference (A-10)</span>
+                        <span class="conference-toggle" id="a10-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="a10-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="a_10_mens_basketball" {collections_checked['a_10_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="a_10_womens_basketball" {collections_checked['a_10_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big 12 Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('big12')">
+                        <span>Big 12 Conference</span>
+                        <span class="conference-toggle" id="big12-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="big12-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_12_mens_basketball" {collections_checked['big_12_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_12_womens_basketball" {collections_checked['big_12_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_12_football" {collections_checked['big_12_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big East Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('big-east')">
+                        <span>Big East Conference</span>
+                        <span class="conference-toggle" id="big-east-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="big-east-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_east_mens_basketball" {collections_checked['big_east_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_east_womens_basketball" {collections_checked['big_east_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big Sky Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('big-sky')">
+                        <span>Big Sky Conference</span>
+                        <span class="conference-toggle" id="big-sky-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="big-sky-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_sky_mens_basketball" {collections_checked['big_sky_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_sky_womens_basketball" {collections_checked['big_sky_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_sky_football" {collections_checked['big_sky_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big Ten Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('big-ten')">
+                        <span>Big Ten Conference</span>
+                        <span class="conference-toggle" id="big-ten-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="big-ten-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_ten_mens_basketball" {collections_checked['big_ten_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_ten_womens_basketball" {collections_checked['big_ten_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_ten_football" {collections_checked['big_ten_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big West Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('big-west')">
+                        <span>Big West Conference</span>
+                        <span class="conference-toggle" id="big-west-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="big-west-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_west_mens_basketball" {collections_checked['big_west_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="big_west_womens_basketball" {collections_checked['big_west_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coastal Athletic Association -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('coastal')">
+                        <span>Coastal Athletic Association</span>
+                        <span class="conference-toggle" id="coastal-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="coastal-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="coastal_mens_basketball" {collections_checked['coastal_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="coastal_womens_basketball" {collections_checked['coastal_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conference USA -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('cusa')">
+                        <span>Conference USA (C-USA)</span>
+                        <span class="conference-toggle" id="cusa-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="cusa-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="conference_usa_mens_basketball" {collections_checked['conference_usa_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="conference_usa_womens_basketball" {collections_checked['conference_usa_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="conference_usa_football" {collections_checked['conference_usa_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horizon League -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('horizon')">
+                        <span>Horizon League</span>
+                        <span class="conference-toggle" id="horizon-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="horizon-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="horizon_league_mens_basketball" {collections_checked['horizon_league_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="horizon_league_womens_basketball" {collections_checked['horizon_league_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ivy League -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('ivy')">
+                        <span>Ivy League</span>
+                        <span class="conference-toggle" id="ivy-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="ivy-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="ivy_league_mens_basketball" {collections_checked['ivy_league_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="ivy_league_womens_basketball" {collections_checked['ivy_league_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('mac')">
+                        <span>MAC (Mid-American Conference)</span>
+                        <span class="conference-toggle" id="mac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="mac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="mac_mens_basketball" {collections_checked['mac_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="mac_womens_basketball" {collections_checked['mac_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="mac_football" {collections_checked['mac_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('maac')">
+                        <span>MAAC (Metro Atlantic Athletic Conference)</span>
+                        <span class="conference-toggle" id="maac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="maac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="maac_mens_basketball" {collections_checked['maac_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="maac_womens_basketball" {collections_checked['maac_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MEAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('meac')">
+                        <span>MEAC (Mid-Eastern Athletic Conference)</span>
+                        <span class="conference-toggle" id="meac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="meac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="meac_mens_basketball" {collections_checked['meac_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="meac_womens_basketball" {collections_checked['meac_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Missouri Valley Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('mvc')">
+                        <span>Missouri Valley Conference (MVC)</span>
+                        <span class="conference-toggle" id="mvc-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="mvc-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="missouri_valley_mens_basketball" {collections_checked['missouri_valley_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="missouri_valley_womens_basketball" {collections_checked['missouri_valley_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MVFC Football Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('mvfc')">
+                        <span>MVFC (Missouri Valley Football Conference)</span>
+                        <span class="conference-toggle" id="mvfc-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="mvfc-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="mvfc_football" {collections_checked['mvfc_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mountain West Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('mountain-west')">
+                        <span>Mountain West Conference</span>
+                        <span class="conference-toggle" id="mountain-west-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="mountain-west-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="mountain_west_football" {collections_checked['mountain_west_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Northeast Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('nec')">
+                        <span>Northeast Conference (NEC)</span>
+                        <span class="conference-toggle" id="nec-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="nec-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="northeast_mens_basketball" {collections_checked['northeast_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="northeast_womens_basketball" {collections_checked['northeast_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ohio Valley Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('ovc')">
+                        <span>Ohio Valley Conference (OVC)</span>
+                        <span class="conference-toggle" id="ovc-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="ovc-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="ohio_valley_mens_basketball" {collections_checked['ohio_valley_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="ohio_valley_womens_basketball" {collections_checked['ohio_valley_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pac-12 Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('pac12')">
+                        <span>Pac-12 Conference</span>
+                        <span class="conference-toggle" id="pac12-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="pac12-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="pac_12_mens_basketball" {collections_checked['pac_12_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="pac_12_womens_basketball" {collections_checked['pac_12_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patriot League -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('patriot')">
+                        <span>Patriot League</span>
+                        <span class="conference-toggle" id="patriot-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="patriot-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="patriot_league_mens_basketball" {collections_checked['patriot_league_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="patriot_league_womens_basketball" {collections_checked['patriot_league_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="patriot_league_football" {collections_checked['patriot_league_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('sec')">
+                        <span>SEC (Southeastern Conference)</span>
+                        <span class="conference-toggle" id="sec-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="sec-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="sec_mens_basketball" {collections_checked['sec_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="sec_womens_basketball" {collections_checked['sec_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="sec_football" {collections_checked['sec_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Southern Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('socon')">
+                        <span>Southern Conference (SoCon)</span>
+                        <span class="conference-toggle" id="socon-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="socon-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="southern_mens_basketball" {collections_checked['southern_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="southern_womens_basketball" {collections_checked['southern_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="southern_football" {collections_checked['southern_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Southland Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('southland')">
+                        <span>Southland Conference</span>
+                        <span class="conference-toggle" id="southland-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="southland-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="southland_mens_basketball" {collections_checked['southland_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="southland_womens_basketball" {collections_checked['southland_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sun Belt Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('sunbelt')">
+                        <span>Sun Belt Conference</span>
+                        <span class="conference-toggle" id="sunbelt-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="sunbelt-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="sun_belt_mens_basketball" {collections_checked['sun_belt_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="sun_belt_womens_basketball" {collections_checked['sun_belt_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SWAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('swac')">
+                        <span>SWAC (Southwestern Athletic Conference)</span>
+                        <span class="conference-toggle" id="swac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="swac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="swac_mens_basketball" {collections_checked['swac_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="swac_womens_basketball" {collections_checked['swac_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="swac_football" {collections_checked['swac_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('uac')">
+                        <span>UAC (United Athletic Conference)</span>
+                        <span class="conference-toggle" id="uac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="uac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="uac_football" {collections_checked['uac_football']}>
+                                <span class="sport-label">Football</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WAC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('wac')">
+                        <span>WAC (Western Athletic Conference)</span>
+                        <span class="conference-toggle" id="wac-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="wac-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="wac_mens_basketball" {collections_checked['wac_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="wac_womens_basketball" {collections_checked['wac_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WCC Conference -->
+                <div class="conference-section">
+                    <div class="conference-header" onclick="toggleConference('wcc')">
+                        <span>WCC (West Coast Conference)</span>
+                        <span class="conference-toggle" id="wcc-toggle">+</span>
+                    </div>
+                    <div class="conference-content" id="wcc-content">
+                        <div class="conference-sports">
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="wcc_mens_basketball" {collections_checked['wcc_mens_basketball']}>
+                                <span class="sport-label">Men's Basketball</span>
+                            </label>
+                            <label class="sport-item">
+                                <input type="checkbox" name="collections" value="wcc_womens_basketball" {collections_checked['wcc_womens_basketball']}>
+                                <span class="sport-label">Women's Basketball</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -749,6 +1563,24 @@ def get_setup_html(current_settings):
             }}
         }}
 
+        function toggleConference(conferenceId) {{
+            const content = document.getElementById(conferenceId + '-content');
+            const toggle = document.getElementById(conferenceId + '-toggle');
+            const header = content.previousElementSibling;
+            
+            if (content.classList.contains('expanded')) {{
+                content.classList.remove('expanded');
+                toggle.classList.remove('expanded');
+                header.classList.remove('expanded');
+                toggle.textContent = '+';
+            }} else {{
+                content.classList.add('expanded');
+                toggle.classList.add('expanded');
+                header.classList.add('expanded');
+                toggle.textContent = '-';
+            }}
+        }}
+
         function checkForUpdates() {{
             const btn = document.getElementById('checkUpdatesBtn');
             const status = document.getElementById('updateStatus');
@@ -820,9 +1652,29 @@ def get_setup_html(current_settings):
             // Get all selected collections
             const collectionCheckboxes = document.querySelectorAll('input[name="collections"]:checked');
             collectionCheckboxes.forEach(checkbox => {{
-                const label = checkbox.closest('.checkbox-item').querySelector('.checkbox-label');
-                const collectionName = label.firstChild.textContent.trim();
-                allSelected.push(collectionName);
+                // Handle both old checkbox-item structure and new sport-item structure
+                let collectionName = '';
+                
+                // Try new conference sport structure first
+                const sportItem = checkbox.closest('.sport-item');
+                if (sportItem) {{
+                    const sportLabel = sportItem.querySelector('.sport-label');
+                    const conferenceHeader = checkbox.closest('.conference-section').querySelector('.conference-header span');
+                    const conferenceName = conferenceHeader.textContent.split('(')[0].trim(); // Remove parenthetical parts
+                    const sportName = sportLabel.textContent.trim();
+                    collectionName = `${{conferenceName}} - ${{sportName}}`;
+                }} else {{
+                    // Fall back to old checkbox-item structure
+                    const checkboxItem = checkbox.closest('.checkbox-item');
+                    if (checkboxItem) {{
+                        const label = checkboxItem.querySelector('.checkbox-label');
+                        collectionName = label.firstChild.textContent.trim();
+                    }}
+                }}
+                
+                if (collectionName) {{
+                    allSelected.push(collectionName);
+                }}
             }});
 
             // Update display
@@ -973,10 +1825,10 @@ def start_config_server(setup_mode=True, pool=None):
                 collections = collections_raw.strip()
             else:
                 # Default if nothing selected
-                collections = 'basketball_mens-college,big_sky'
+                collections = 'nfl,fbs'
             
             timezone = form_data.get('timezone', 'America/Denver').strip()
-            api_url = form_data.get('api_url', 'http://143.110.202.154:8000/api/live').strip()
+            api_url = form_data.get('api_url', 'http://143.110.202.154/api/live').strip()
             
             print(f"Saving: SSID={wifi_ssid}, Collections={collections}, TZ={timezone}")
             
